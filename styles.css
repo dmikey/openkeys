@@ -126,3 +126,6 @@ main{position:relative}.topbar{grid-template-columns:240px 1fr 330px}.library-bu
 
 /* Open strings sit before the nut; numbered cells now map directly to fret numbers. */
 .guitar-string{grid-template-columns:10px 32px repeat(24,1fr)}.guitar-string i.open-position{border-left:0;border-right:3px solid rgba(50,34,20,.72);background:rgba(255,248,232,.55)}.guitar-string i.target.open-position::after{width:30px;height:17px;border-radius:6px;font-size:.34rem;box-shadow:0 0 0 2px rgba(255,255,255,.62)}
+
+/* Preview playback states live entirely in the button. */
+#hear-phrase.preview-loading svg{display:none}#hear-phrase.preview-loading::before{content:"";width:15px;height:15px;flex:0 0 15px;border:2px solid #c9ced8;border-top-color:var(--blue);border-radius:50%;animation:preview-spin .7s linear infinite}#hear-phrase.preview-playing{border-color:#b8c6ff;background:var(--blue-soft);color:var(--blue)}#hear-phrase.preview-playing svg{animation:preview-pulse .8s ease-in-out infinite alternate}@keyframes preview-spin{to{transform:rotate(360deg)}}@keyframes preview-pulse{to{transform:scale(1.15)}}
