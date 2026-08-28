@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="OpenKeys listens to your real piano and guides you through any MIDI song, one note at a time." />
+  <meta name="description" content="OpenKeys listens to your real instrument and guides you through any MIDI song, one note at a time." />
   <meta name="theme-color" content="#fffefd" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="OpenKeys" />
-  <title>OpenKeys — Your piano, your pace</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20260828-1" />
+  <title>OpenKeys — Your instrument, your pace</title>
+  <link rel="manifest" href="manifest.webmanifest?v=20260828-2" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260828-8" />
+  <link rel="stylesheet" href="styles.css?v=20260828-10" />
 </head>
 <body>
   <a class="skip-link" href="#coach">Skip to lesson</a>
@@ -28,6 +28,7 @@
       </a>
       <div class="lesson-name"><span id="song-title">Ode to Joy</span><small id="song-composer">L. van Beethoven · Beginner</small></div>
       <div class="top-actions">
+        <button class="journey-button" id="journey-button" type="button" aria-label="Open instrument journey"><span id="journey-icon">♬</span><span><small>MY JOURNEY</small><strong id="journey-name">Piano</strong></span></button>
         <div class="xp-pill" aria-label="Experience points"><span>XP</span><strong id="xp-total">0</strong></div>
         <button class="library-button" id="library-button" type="button" aria-label="Open song library"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z"/></svg><span>Library</span></button>
         <button class="quiet-button" id="settings-button" type="button" aria-label="Open help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 3.2 2.3c-.8.4-.9.8-.9 1.7M12 16.8h.01"/></svg></button>
@@ -43,7 +44,7 @@
           <li class="active"><span class="phrase-number">01</span><div><strong>Opening phrase</strong><small>Notes 1–15</small></div><span class="phrase-state" aria-label="In progress"></span></li>
           <li><span class="phrase-number">02</span><div><strong>Answer phrase</strong><small>Notes 16–30</small></div></li>
         </ol>
-        <div class="rail-tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4M8.5 14.5A6 6 0 1 1 16 14c-.8.7-1 1.2-1 2H9c0-.7-.1-1.1-.5-1.5Z"/></svg><div><strong>Take your time</strong><p>The music waits for you. Play the highlighted note to move forward.</p></div></div>
+        <button class="rail-journey" id="rail-journey" type="button"><span id="rail-badge">01</span><div><small>NEXT MILESTONE</small><strong id="rail-milestone">Play your first note</strong><i><b id="milestone-progress"></b></i></div></button>
         <div class="lesson-progress"><div><span>LESSON PROGRESS</span><strong id="progress-text">0 / 30</strong></div><div class="progress-track"><i id="progress-bar"></i></div></div>
       </aside>
 
@@ -51,7 +52,7 @@
         <div class="practice-header">
           <div class="follow-status"><span class="live-dot"></span><div><strong id="status-title">Ready to listen</strong><small id="status-copy">Turn on your microphone to begin</small></div></div>
           <div class="header-controls">
-            <button class="text-button" id="hear-phrase" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 9a4 4 0 0 1 0 6"/></svg>Hear phrase</button>
+            <button class="text-button" id="hear-phrase" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 9a4 4 0 0 1 0 6"/></svg><span id="phrase-label">Hear piano phrase</span></button>
             <button class="text-button" id="restart-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v5h5M6 9a7.5 7.5 0 1 1-1 5"/></svg>Restart</button>
           </div>
         </div>
@@ -72,7 +73,7 @@
           <div class="placement-center">
             <div class="placement-heading"><span class="heard-label">FIND THIS KEY</span><span id="position-hint">Two white keys right of Middle C</span></div>
             <div class="hand-guide" aria-label="Recommended fingering"><div class="finger-dots" id="finger-dots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i></div><div class="finger-copy"><strong id="hand-name">Right hand</strong><span>Finger <b id="finger-number">3</b> · <span id="finger-name">Middle</span></span></div></div>
-            <div class="physical-keyboard" id="physical-keyboard" aria-label="Physical keyboard placement guide"></div>
+            <div class="instrument-visual" id="instrument-visual"><div class="physical-keyboard" id="physical-keyboard" aria-label="Physical keyboard placement guide"></div><div class="guitar-fretboard" id="guitar-fretboard" aria-label="Guitar string and fret placement guide"></div></div>
             <div class="finger-path" id="finger-path" aria-label="Current and upcoming finger sequence"></div>
             <div class="heard-compact"><span>MIC HEARS</span><strong id="heard-note">—</strong><small id="heard-cents">Play a note</small><div class="pitch-meter" aria-label="Pitch accuracy"><span>-50</span><div class="meter-line"><i id="pitch-indicator"></i><b></b></div><span>+50</span></div></div>
           </div>
@@ -88,16 +89,26 @@
 
   <dialog id="library-dialog" class="library-dialog">
     <div class="library-top">
-      <div><span class="dialog-kicker">FREE &amp; OPEN</span><h2>Choose your next song</h2><p>Public-domain classics and attributed community MIDI, arranged as note-follow lessons.</p></div>
+      <div><span class="dialog-kicker">PLAY-ALONGS</span><h2 id="library-title">Choose your next piano song</h2><p id="library-subtitle">Each completed song advances your piano journey.</p></div>
       <button class="dialog-close" id="library-close" type="button" aria-label="Close library">×</button>
     </div>
     <div class="library-filter" role="group" aria-label="Filter lessons"><button class="active" data-filter="all" type="button">All songs</button><button data-filter="game" type="button">Game music</button><button data-filter="beginner" type="button">Beginner</button><button data-filter="intermediate" type="button">Intermediate</button></div>
     <div class="lesson-grid" id="lesson-grid"></div>
     <footer class="library-note"><span>♩</span><p><strong>Open learning library.</strong> Classical lessons use public-domain compositions. Community MIDI lessons are clearly attributed and remain subject to their creators’ rights.</p></footer>
   </dialog>
-  <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your piano is the controller.</h2><p>Place this tablet on your music stand, allow microphone access, and play the highlighted note on your acoustic or digital piano. OpenKeys identifies the pitch and moves the music forward only when you are ready.</p><ul><li>Flexible recognition allows for natural tuning and microphone variation.</li><li>For best results, play one note at a time and let it ring briefly.</li><li>Your audio never leaves this device.</li></ul></dialog>
+  <dialog id="journey-dialog" class="journey-dialog">
+    <button class="dialog-close" id="journey-close" type="button" aria-label="Close journey">×</button>
+    <span class="dialog-kicker">YOUR MUSIC PATH</span><h2>Choose a journey. Build real skill.</h2><p class="journey-intro">Every completed play-along adds notes, songs, stars, and achievements to that instrument.</p>
+    <div class="journey-choices" role="group" aria-label="Instrument journeys">
+      <button data-instrument="piano" type="button"><span class="journey-glyph">♩</span><span><small>PIANO PATH</small><strong>Keys Explorer</strong><em id="piano-journey-stat">0 songs mastered</em></span><b>Continue →</b></button>
+      <button data-instrument="guitar" type="button"><span class="journey-glyph">♬</span><span><small>GUITAR PATH</small><strong>Fretboard Explorer</strong><em id="guitar-journey-stat">0 songs mastered</em></span><b>Continue →</b></button>
+    </div>
+    <div class="achievement-heading"><div><small>ACHIEVEMENTS</small><strong id="achievement-title">Piano journey</strong></div><span id="journey-total-notes">0 notes played</span></div>
+    <div class="achievement-grid" id="achievement-grid"></div>
+  </dialog>
+  <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your instrument is the controller.</h2><p>Choose piano or guitar, place this device where you can see it, allow microphone access, and play the highlighted note. OpenKeys identifies the pitch and moves the music forward only when you are ready.</p><ul><li>Flexible recognition allows for natural tuning and microphone variation.</li><li>For best results, play one note at a time and let it ring briefly.</li><li>Your audio never leaves this device.</li></ul></dialog>
   <div class="celebration" id="celebration" aria-live="polite"><span>✓</span><strong>That’s it!</strong><small>Moving to the next note</small></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260828-8"></script>
+  <script src="app.js?v=20260828-11"></script>
 </body>
 </html>

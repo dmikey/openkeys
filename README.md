@@ -1,24 +1,31 @@
 # OpenKeys
 
-OpenKeys is a free, tablet-first piano coach that turns standard MIDI files into interactive lessons. It listens to a real acoustic or digital piano through the device microphone and advances at the player’s pace. It is dependency-free, privacy-friendly, and deployable to any static host.
+OpenKeys is a free, tablet-first instrument coach that turns standard MIDI files into interactive lessons. It listens to a real piano or guitar through the device microphone and advances at the player’s pace. It is dependency-free, privacy-friendly, and deployable to any static host.
 
 [**Try OpenKeys in your browser →**](https://dmikey.github.io/openkeys/)
 
-![OpenKeys tablet piano lesson with physical key and fingering guidance](screenshot.png)
+![OpenKeys tablet lesson with physical piano-key and fingering guidance](screenshot.png)
+
+Choose a Piano or Guitar journey, select a play-along, and let OpenKeys wait for each real note. Journey progress, mastered songs, stars, milestones, and achievements stay on the device and are tracked separately for each instrument.
 
 ## Features
 
 - Import `.mid` and `.midi` files directly in the browser
-- Browse six included lessons based on public-domain compositions
+- Switch between piano and standard-tuned guitar inside the same installed app
+- Separate instrument journeys with milestone progress and unlockable achievements
+- Browse included lessons based on public-domain compositions
 - Original code-generated cover art, difficulty filters, XP, stars, and saved progress
+- Instrument-specific play-along mastery so each completed song advances the chosen path
 - Correct-note combos that reward consistent playing
 - Follow mode that waits until the player performs the correct note
 - Focused staff view with the current note and upcoming phrase
-- Non-playable physical keyboard map showing the target relative to Middle C and black-key groups
-- Curated five-finger guidance for beginner lessons, with contextual fingering for imported MIDI
+- Physical piano map showing the target relative to Middle C and black-key groups
+- Six-string guitar fretboard showing a playable string and fret for each target note
+- Curated piano fingering and contextual guitar-position guidance for imported MIDI
 - Live note-name, octave, and pitch-accuracy feedback
 - Reference-note and phrase playback using Web Audio
-- Microphone pitch detection for acoustic or digital pianos
+- Instrument-aware playback with layered grand-piano and plucked-string guitar voices
+- Shared microphone pitch detection for acoustic or electric instruments
 - Responsive, keyboard-accessible interface
 - No account, server, tracking, or uploaded audio
 
@@ -40,6 +47,10 @@ python3 -m http.server 8080
 
 Then open [http://localhost:8080](http://localhost:8080).
 
+## Instrument architecture
+
+The lesson engine is instrument-neutral: MIDI parsing, microphone recognition, progression, scoring, XP, the library, and saved state are shared. Piano and guitar are guidance and playback adapters that provide physical note placement and an appropriate synthesized voice. New instruments can be added to the same installable app by implementing that adapter contract instead of duplicating the application.
+
 ## Install on iPhone or iPad
 
 Open the hosted app in Safari, tap **Share**, then choose **Add to Home Screen**. OpenKeys launches in standalone mode with notch-safe layouts and no separate browser bar. If the icon was installed before the standalone metadata was added, remove that Home Screen icon and add it again so iOS refreshes the saved launch settings.
@@ -58,7 +69,7 @@ Recent versions of Chrome, Edge, Firefox, and Safari are supported. Dedicated la
 
 ## Contributing
 
-Issues, lesson ideas, accessibility improvements, and pull requests are welcome. The goal is to make high-quality piano learning available to anyone with a browser.
+Issues, lesson ideas, accessibility improvements, and pull requests are welcome. The goal is to make high-quality instrument learning available to anyone with a browser.
 
 ## License
 

@@ -1,7 +1,7 @@
 {
-  "name": "OpenKeys — Piano Coach",
+  "name": "OpenKeys — Instrument Coach",
   "short_name": "OpenKeys",
-  "description": "Learn piano from MIDI using your real instrument and microphone.",
+  "description": "Learn piano or guitar from MIDI using your real instrument and microphone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

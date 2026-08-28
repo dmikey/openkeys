@@ -4,13 +4,16 @@ const $ = selector => document.querySelector(selector);
 const els = {
   title: $("#song-title"), composer: $("#song-composer"), midi: $("#midi-input"), track: $("#notes-track"), counts: $("#count-strip"),
   targetName: $("#target-name"), targetOctave: $("#target-octave"), targetHand: $("#target-hand"), heardNote: $("#heard-note"), heardCents: $("#heard-cents"),
-  pitchIndicator: $("#pitch-indicator"), mic: $("#mic-button"), reference: $("#reference-button"), hearPhrase: $("#hear-phrase"), restart: $("#restart-button"),
+  pitchIndicator: $("#pitch-indicator"), mic: $("#mic-button"), reference: $("#reference-button"), hearPhrase: $("#hear-phrase"), phraseLabel: $("#phrase-label"), restart: $("#restart-button"),
   statusTitle: $("#status-title"), statusCopy: $("#status-copy"), followStatus: $(".follow-status"), progressText: $("#progress-text"), progressBar: $("#progress-bar"),
   celebration: $("#celebration"), toast: $("#toast"), help: $("#help-dialog"), settings: $("#settings-button"), dialogClose: $("#dialog-close"),
-  library: $("#library-dialog"), libraryButton: $("#library-button"), libraryClose: $("#library-close"), lessonGrid: $("#lesson-grid"),
+  library: $("#library-dialog"), libraryButton: $("#library-button"), libraryClose: $("#library-close"), lessonGrid: $("#lesson-grid"), libraryTitle: $("#library-title"), librarySubtitle: $("#library-subtitle"),
   phraseList: $("#phrase-list"), lessonHeading: $("#lesson-heading"), partLabel: $("#part-label"), xpTotal: $("#xp-total"),
   physicalKeyboard: $("#physical-keyboard"), positionHint: $("#position-hint"), handName: $("#hand-name"), fingerNumber: $("#finger-number"),
-  fingerName: $("#finger-name"), fingerDots: $("#finger-dots"), fingerPath: $("#finger-path"), comboValue: $("#combo-value")
+  guitarFretboard: $("#guitar-fretboard"), fingerName: $("#finger-name"), fingerDots: $("#finger-dots"), fingerPath: $("#finger-path"), comboValue: $("#combo-value"),
+  instrumentButtons: [...document.querySelectorAll("[data-instrument]")], appShell: $(".app-shell"), journeyButton: $("#journey-button"), railJourney: $("#rail-journey"),
+  journey: $("#journey-dialog"), journeyClose: $("#journey-close"), journeyName: $("#journey-name"), journeyIcon: $("#journey-icon"), achievementGrid: $("#achievement-grid"),
+  achievementTitle: $("#achievement-title"), journeyTotalNotes: $("#journey-total-notes"), railMilestone: $("#rail-milestone"), milestoneProgress: $("#milestone-progress"), railBadge: $("#rail-badge")
 };
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -31,6 +34,8 @@ const LESSONS = [
 let song = LESSONS[0];
 let game = (() => { try { return JSON.parse(localStorage.getItem("openkeys-progress")) || {xp:0, lessons:{}}; } catch (_) { return {xp:0, lessons:{}}; } })();
 let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0;
+const guitarToneCache = new Map();
+let activeInstrument = (() => { try { return localStorage.getItem("openkeys-instrument") === "guitar" ? "guitar" : "piano"; } catch (_) { return "piano"; } })();
 
 function noteName(midi) { return NOTE_NAMES[((midi % 12) + 12) % 12]; }
 function noteOctave(midi) { return Math.floor(midi / 12) - 1; }
@@ -44,14 +49,27 @@ function initAudio() {
   return true;
 }
 
-function playTone(midi, when = 0, duration = .55, velocity = .75) {
+function playPianoTone(midi, when = 0, duration = .55, velocity = .75) {
   if (!initAudio()) return;
-  const start = audioContext.currentTime + when, osc = audioContext.createOscillator(), overtone = audioContext.createOscillator();
-  const gain = audioContext.createGain(), overGain = audioContext.createGain();
-  osc.type = "triangle"; osc.frequency.value = frequencyFor(midi); overtone.type = "sine"; overtone.frequency.value = frequencyFor(midi) * 2;
-  gain.gain.setValueAtTime(.0001, start); gain.gain.exponentialRampToValueAtTime(.2 * velocity, start + .02); gain.gain.exponentialRampToValueAtTime(.0001, start + duration + .25);
-  overGain.gain.setValueAtTime(.0001, start); overGain.gain.exponentialRampToValueAtTime(.035 * velocity, start + .015); overGain.gain.exponentialRampToValueAtTime(.0001, start + duration * .7);
-  osc.connect(gain).connect(masterGain); overtone.connect(overGain).connect(masterGain); osc.start(start); overtone.start(start); osc.stop(start + duration + .3); overtone.stop(start + duration + .1);
+  const start = audioContext.currentTime + when, base = frequencyFor(midi), body = audioContext.createBiquadFilter(); body.type = "lowpass"; body.frequency.value = Math.min(9000, base * 12); body.Q.value = .35; body.connect(masterGain);
+  [[1,.22,0],[2,.075,-2],[3,.035,3],[4,.016,-5]].forEach(([ratio, level, cents], index) => { const osc = audioContext.createOscillator(), gain = audioContext.createGain(); osc.type = index ? "sine" : "triangle"; osc.frequency.value = base * ratio; osc.detune.value = cents; gain.gain.setValueAtTime(.0001,start); gain.gain.exponentialRampToValueAtTime(level * velocity,start + .008 + index * .003); gain.gain.exponentialRampToValueAtTime(.0001,start + Math.max(.7,duration + 1.15 - index * .18)); osc.connect(gain).connect(body); osc.start(start); osc.stop(start + Math.max(.8,duration + 1.25)); });
+  const hammer = audioContext.createBuffer(1, Math.floor(audioContext.sampleRate * .018), audioContext.sampleRate), data = hammer.getChannelData(0); for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length); const hit = audioContext.createBufferSource(), hitGain = audioContext.createGain(); hit.buffer = hammer; hitGain.gain.value = .035 * velocity; hit.connect(hitGain).connect(body); hit.start(start);
+}
+
+function guitarBuffer(midi) {
+  const key = `${midi}:${audioContext.sampleRate}`; if (guitarToneCache.has(key)) return guitarToneCache.get(key);
+  const rate = audioContext.sampleRate, length = Math.floor(rate * 2.6), period = Math.max(2, Math.round(rate / frequencyFor(midi))), buffer = audioContext.createBuffer(1,length,rate), data = buffer.getChannelData(0), ring = new Float32Array(period);
+  for (let i = 0; i < period; i++) ring[i] = Math.random() * 2 - 1;
+  let previous = 0; for (let i = 0; i < length; i++) { const slot = i % period, next = .497 * (ring[slot] + previous); ring[slot] = next * .9965; previous = next; data[i] = next * Math.exp(-i / (rate * 2.1)); }
+  guitarToneCache.set(key,buffer); return buffer;
+}
+
+function playGuitarTone(midi, when = 0, duration = .55, velocity = .75) {
+  if (!initAudio()) return; const start = audioContext.currentTime + when, source = audioContext.createBufferSource(), gain = audioContext.createGain(), body = audioContext.createBiquadFilter(); source.buffer = guitarBuffer(midi); body.type = "lowpass"; body.frequency.value = Math.min(6500,frequencyFor(midi) * 9); body.Q.value = .7; gain.gain.setValueAtTime(.34 * velocity,start); gain.gain.exponentialRampToValueAtTime(.0001,start + Math.max(.8,duration + 1.25)); source.connect(body).connect(gain).connect(masterGain); source.start(start); source.stop(start + Math.max(.85,duration + 1.3));
+}
+
+function playTone(midi, when = 0, duration = .55, velocity = .75) {
+  (activeInstrument === "guitar" ? playGuitarTone : playPianoTone)(midi,when,duration,velocity);
 }
 
 function staffY(midi) {
@@ -60,6 +78,36 @@ function staffY(midi) {
 }
 
 function saveGame() { try { localStorage.setItem("openkeys-progress", JSON.stringify(game)); } catch (_) {} }
+
+function journeyProgress(id = activeInstrument) {
+  game.instruments ||= {};
+  if (!game.instruments[id]) game.instruments[id] = { lessons:{} };
+  if (id === "piano" && !Object.keys(game.instruments.piano.lessons).length && Object.keys(game.lessons || {}).length) game.instruments.piano.lessons = JSON.parse(JSON.stringify(game.lessons));
+  return game.instruments[id];
+}
+
+function journeyStats(id = activeInstrument) {
+  const records = Object.values(journeyProgress(id).lessons), notes = records.reduce((sum, record) => sum + (record.best || 0), 0), songs = records.filter(record => record.rewarded).length;
+  return { notes, songs, stars:records.reduce((sum, record) => sum + (record.stars || 0), 0) };
+}
+
+const ACHIEVEMENTS = [
+  { icon:"♪", title:"First sound", copy:"Play your first guided note", test:stats => stats.notes >= 1, goal:1 },
+  { icon:"25", title:"Finding rhythm", copy:"Play 25 guided notes", test:stats => stats.notes >= 25, goal:25 },
+  { icon:"★", title:"First play-along", copy:"Complete one full song", test:stats => stats.songs >= 1, goal:"song" },
+  { icon:"100", title:"Note collector", copy:"Play 100 guided notes", test:stats => stats.notes >= 100, goal:100 },
+  { icon:"3★", title:"Set list", copy:"Master three play-alongs", test:stats => stats.songs >= 3, goal:"songs" }
+];
+
+function renderJourney() {
+  const stats = journeyStats(), next = ACHIEVEMENTS.find(item => !item.test(stats));
+  els.journeyName.textContent = INSTRUMENTS[activeInstrument].name; els.journeyIcon.textContent = activeInstrument === "piano" ? "♩" : "♬";
+  els.achievementTitle.textContent = `${INSTRUMENTS[activeInstrument].name} journey`; els.journeyTotalNotes.textContent = `${stats.notes} note${stats.notes === 1 ? "" : "s"} played`;
+  $("#piano-journey-stat").textContent = `${journeyStats("piano").songs} songs mastered`; $("#guitar-journey-stat").textContent = `${journeyStats("guitar").songs} songs mastered`;
+  els.achievementGrid.innerHTML = ""; ACHIEVEMENTS.forEach(item => { const unlocked = item.test(stats), card = document.createElement("article"); card.className = unlocked ? "unlocked" : ""; card.innerHTML = `<span>${unlocked ? item.icon : "◇"}</span><div><strong>${item.title}</strong><small>${item.copy}</small></div><b>${unlocked ? "UNLOCKED" : "LOCKED"}</b>`; els.achievementGrid.append(card); });
+  if (!next) { els.railMilestone.textContent = "Journey complete — keep playing"; els.milestoneProgress.style.width = "100%"; els.railBadge.textContent = "★"; }
+  else { const current = typeof next.goal === "number" ? stats.notes : stats.songs, goal = typeof next.goal === "number" ? next.goal : next.goal === "song" ? 1 : 3; els.railMilestone.textContent = next.title; els.milestoneProgress.style.width = `${Math.min(100, current / goal * 100)}%`; els.railBadge.textContent = next.icon; }
+}
 
 function sectionSize() {
   if (song.notes.length > 160) return Math.ceil(song.notes.length / 5 / 16) * 16;
@@ -81,13 +129,13 @@ function renderPhrases() {
 }
 
 function renderLibrary(filter = "all") {
-  els.lessonGrid.innerHTML = "";
+  const stats = journeyStats(); els.libraryTitle.textContent = `Choose your next ${INSTRUMENTS[activeInstrument].name.toLowerCase()} song`; els.librarySubtitle.textContent = `${stats.songs} mastered · ${stats.stars} stars · every completed play-along advances this journey.`; els.lessonGrid.innerHTML = "";
   const visible = LESSONS.filter(lesson => filter === "all" || (filter === "game" ? lesson.category === "game" : lesson.level.toLowerCase() === filter));
   let lastSection = "";
   visible.forEach(lesson => {
     const section = lesson.category === "game" ? "Game music · Community MIDI" : "Public-domain essentials";
     if (filter === "all" && section !== lastSection) { const heading = document.createElement("h3"); heading.className = "library-section-label"; heading.textContent = section; els.lessonGrid.append(heading); lastSection = section; }
-    const record = game.lessons[lesson.id] || {}, progress = Math.round((record.best || 0) / lesson.notes.length * 100), stars = record.stars || 0;
+    const record = journeyProgress().lessons[lesson.id] || {}, progress = Math.round((record.best || 0) / lesson.notes.length * 100), stars = record.stars || 0;
     const card = document.createElement("article"); card.className = "lesson-card"; card.dataset.lesson = lesson.id; card.tabIndex = 0; card.setAttribute("role", "button");
     card.setAttribute("aria-label", `Learn ${lesson.name} by ${lesson.composer}`);
     const attribution = lesson.sourceUrl ? `<p class="attribution"><a href="${lesson.sourceUrl}" target="_blank" rel="noreferrer">${lesson.sourceLabel}</a> by <a href="${lesson.arrangerUrl}" target="_blank" rel="noreferrer">Mr. Magicman</a></p>` : "";
@@ -102,13 +150,34 @@ function selectLesson(id) {
   els.statusTitle.textContent = "Ready to listen"; els.statusCopy.textContent = "Turn on your microphone to begin"; render(); els.library.close(); showToast(`${lesson.name} is ready to learn`);
 }
 
-function suggestedFinger(midi, index) {
+function pianoFinger(midi, index) {
   if (song.fingers?.[index]) return song.fingers[index];
   const right = midi >= 60, pitch = midi % 12;
   const rightMap = {0:1,1:2,2:2,3:3,4:3,5:4,6:4,7:5,8:3,9:4,10:4,11:5};
   const leftMap = {0:5,1:4,2:4,3:3,4:3,5:2,6:2,7:1,8:3,9:2,10:2,11:1};
   return (right ? rightMap : leftMap)[pitch] || 3;
 }
+
+const GUITAR_STRINGS = [
+  { name:"1", pitch:64, label:"high E" }, { name:"2", pitch:59, label:"B" }, { name:"3", pitch:55, label:"G" },
+  { name:"4", pitch:50, label:"D" }, { name:"5", pitch:45, label:"A" }, { name:"6", pitch:40, label:"low E" }
+];
+
+function guitarPosition(midi) {
+  const choices = GUITAR_STRINGS.map((string, index) => ({...string, index, fret:midi - string.pitch})).filter(choice => choice.fret >= 0 && choice.fret <= 20);
+  return choices.sort((a, b) => (a.fret > 12) - (b.fret > 12) || a.fret - b.fret)[0] || { name:"1", label:"high E", index:0, fret:Math.max(0, midi - 64) };
+}
+
+const INSTRUMENTS = {
+  piano: {
+    name:"Piano", render:renderPianoPlacement,
+    describe(midi, index) { const finger = pianoFinger(midi, index), hand = midi < 60 ? "Left hand" : "Right hand"; return { hint:positionHint(midi), primary:hand, number:finger, detail:["Thumb","Index","Middle","Ring","Pinky"][finger - 1], hand }; }
+  },
+  guitar: {
+    name:"Guitar", render:renderGuitarPlacement,
+    describe(midi) { const position = guitarPosition(midi), finger = position.fret === 0 ? 0 : ((position.fret - 1) % 4) + 1; return { hint:position.fret ? `String ${position.name} · fret ${position.fret}` : `Open ${position.label} string`, primary:`String ${position.name} · ${position.label}`, number:finger, detail:position.fret ? `Fret ${position.fret}` : "Open", hand:"Fretting hand" }; }
+  }
+};
 
 function positionHint(midi) {
   if (midi === 60) return "This is Middle C";
@@ -121,9 +190,8 @@ function positionHint(midi) {
   return `${amount === 1 ? "One" : amount} white key${amount === 1 ? "" : "s"} ${side} of Middle C`;
 }
 
-function renderPlacement(target) {
-  const midi = target.midi, finger = suggestedFinger(midi, currentIndex), right = midi >= 60, fingerNames = ["Thumb","Index","Middle","Ring","Pinky"];
-  els.positionHint.textContent = positionHint(midi); els.handName.textContent = right ? "Right hand" : "Left hand"; els.fingerNumber.textContent = finger; els.fingerName.textContent = fingerNames[finger - 1];
+function renderPianoPlacement(target) {
+  const midi = target.midi, finger = pianoFinger(midi, currentIndex);
   [...els.fingerDots.children].forEach((dot, index) => dot.classList.toggle("active", index + 1 === finger));
   els.physicalKeyboard.innerHTML = ""; const min = midi < 60 ? 48 : midi > 83 ? 72 : 60, max = min + 23, whites = [];
   for (let note = min; note <= max; note++) if (![1,3,6,8,10].includes(note % 12)) whites.push(note);
@@ -131,12 +199,27 @@ function renderPlacement(target) {
   whites.forEach((note, index) => {
     if (note < max && [0,2,5,7,9].includes(note % 12)) { const blackMidi = note + 1, key = document.createElement("i"); key.className = `guide-key black${blackMidi === midi ? " target" : ""}`; key.style.left = `${(index + 1) / whites.length * 100}%`; key.dataset.note = noteLabel(blackMidi); if (blackMidi === midi) key.dataset.finger = finger; els.physicalKeyboard.append(key); }
   });
-  els.fingerPath.innerHTML = "";
+}
+
+function renderGuitarPlacement(target) {
+  const position = guitarPosition(target.midi);
+  els.guitarFretboard.innerHTML = "";
+  GUITAR_STRINGS.forEach((string, index) => {
+    const row = document.createElement("div"); row.className = `guitar-string${index === position.index ? " target" : ""}`;
+    row.dataset.string = string.name;
+    for (let fret = 0; fret <= 24; fret++) { const cell = document.createElement("i"); if (index === position.index && fret === position.fret) { cell.className = "target"; cell.dataset.fret = position.fret || "O"; } row.append(cell); }
+    els.guitarFretboard.append(row);
+  });
+}
+
+function renderPlacement(target) {
+  const instrument = INSTRUMENTS[activeInstrument], guidance = instrument.describe(target.midi, currentIndex);
+  els.appShell.dataset.instrument = activeInstrument; els.positionHint.textContent = guidance.hint; els.handName.textContent = guidance.primary;
+  els.fingerNumber.textContent = guidance.number; els.fingerName.textContent = guidance.detail; els.targetHand.textContent = guidance.hand;
+  instrument.render(target); els.fingerPath.innerHTML = "";
   song.notes.slice(currentIndex, currentIndex + 4).forEach((note, offset) => {
-    const step = document.createElement("span"); step.className = `finger-step${offset === 0 ? " current" : ""}`;
-    const dot = document.createElement("i"), label = document.createElement("small");
-    dot.textContent = suggestedFinger(note.midi, currentIndex + offset); label.textContent = noteLabel(note.midi);
-    step.append(dot, label); els.fingerPath.append(step);
+    const next = instrument.describe(note.midi, currentIndex + offset), step = document.createElement("span"); step.className = `finger-step${offset === 0 ? " current" : ""}`;
+    const dot = document.createElement("i"), label = document.createElement("small"); dot.textContent = activeInstrument === "guitar" ? guitarPosition(note.midi).name : next.number; label.textContent = noteLabel(note.midi); step.append(dot, label); els.fingerPath.append(step);
   });
 }
 
@@ -153,7 +236,8 @@ function render() {
     label.style.setProperty("--x", `${x}%`); label.style.setProperty("--y", staffY(note.midi)); els.track.append(label);
   }
   for (let i = 0; i < 6; i++) { const count = document.createElement("span"); count.textContent = String(currentIndex + i + 1).padStart(2, "0"); els.counts.append(count); }
-  if (target) { els.targetName.textContent = noteName(target.midi); els.targetOctave.textContent = `Octave ${noteOctave(target.midi)}`; els.targetHand.textContent = target.midi < 60 ? "Left hand" : "Right hand"; els.reference.textContent = `Play reference ${noteLabel(target.midi)}`; renderPlacement(target); }
+  els.phraseLabel.textContent = `Hear ${INSTRUMENTS[activeInstrument].name.toLowerCase()} phrase`;
+  if (target) { els.targetName.textContent = noteName(target.midi); els.targetOctave.textContent = `Octave ${noteOctave(target.midi)}`; els.reference.textContent = `Play ${INSTRUMENTS[activeInstrument].name.toLowerCase()} reference ${noteLabel(target.midi)}`; renderPlacement(target); }
   const done = Math.min(currentIndex, total); els.progressText.textContent = `${done} / ${total}`; els.progressBar.style.width = `${total ? done / total * 100 : 0}%`;
   els.xpTotal.textContent = game.xp || 0; renderPhrases();
 }
@@ -161,10 +245,10 @@ function render() {
 function advance() {
   currentIndex++; combo++; wrongFrames = 0; matchHistory = []; els.comboValue.textContent = `×${combo}`; els.comboValue.classList.remove("xp-pop"); requestAnimationFrame(() => els.comboValue.classList.add("xp-pop"));
   if (song.id) {
-    const record = game.lessons[song.id] ||= {best:0, stars:0, rewarded:false};
+    const record = journeyProgress().lessons[song.id] ||= {best:0, stars:0, rewarded:false};
     if (currentIndex > record.best) { record.best = currentIndex; game.xp += 5; }
     if (currentIndex >= song.notes.length && !record.rewarded) { record.rewarded = true; record.stars = 3; game.xp += song.reward; }
-    saveGame();
+    saveGame(); renderJourney();
   }
   els.celebration.classList.add("show"); clearTimeout(advance.timer); advance.timer = setTimeout(() => els.celebration.classList.remove("show"), 850);
   if (currentIndex >= song.notes.length) { currentIndex = song.notes.length; stopListening(); render(); els.statusTitle.textContent = "Lesson complete"; els.statusCopy.textContent = song.reward ? `Three stars earned · +${song.reward} XP` : "You played every note"; showToast("Beautifully played — lesson complete!"); }
@@ -198,7 +282,7 @@ async function startListening() {
     els.statusTitle.textContent = `Listening for ${noteLabel(song.notes[currentIndex].midi)}`; els.statusCopy.textContent = "Play the highlighted note";
     const detect = timestamp => { if (!listening) return; if (timestamp - lastAnalysis > 75) { analyser.getFloatTimeDomainData(buffer); const pitch = autoCorrelate(buffer, audioContext.sampleRate); if (pitch > 0) updateHeard(pitch); lastAnalysis = timestamp; } micFrame = requestAnimationFrame(detect); };
     micFrame = requestAnimationFrame(detect);
-  } catch (_) { showToast("Allow microphone access so OpenKeys can hear your piano."); }
+  } catch (_) { showToast(`Allow microphone access so OpenKeys can hear your ${INSTRUMENTS[activeInstrument].name.toLowerCase()}.`); }
 }
 
 function stopListening() {
@@ -235,8 +319,11 @@ els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 
 els.settings.addEventListener("click", () => els.help.showModal()); els.dialogClose.addEventListener("click", () => els.help.close()); els.help.addEventListener("click", event => { if (event.target === els.help) els.help.close(); });
 els.libraryButton.addEventListener("click", () => { renderLibrary(); els.library.showModal(); }); els.libraryClose.addEventListener("click", () => els.library.close());
 els.library.addEventListener("click", event => { if (event.target === els.library) els.library.close(); });
+function selectInstrument(id) { activeInstrument = id; try { localStorage.setItem("openkeys-instrument", activeInstrument); } catch (_) {} els.instrumentButtons.forEach(item => { const active = item.dataset.instrument === id; item.classList.toggle("active", active); item.setAttribute("aria-pressed", active); }); renderJourney(); renderLibrary(); render(); if (els.journey.open) els.journey.close(); showToast(`${INSTRUMENTS[id].name} journey ready`); }
+els.instrumentButtons.forEach(button => button.addEventListener("click", () => selectInstrument(button.dataset.instrument)));
+els.journeyButton.addEventListener("click", () => { renderJourney(); els.journey.showModal(); }); els.railJourney.addEventListener("click", () => { renderJourney(); els.journey.showModal(); }); els.journeyClose.addEventListener("click", () => els.journey.close()); els.journey.addEventListener("click", event => { if (event.target === els.journey) els.journey.close(); });
 document.querySelectorAll(".library-filter button").forEach(button => button.addEventListener("click", () => { document.querySelectorAll(".library-filter button").forEach(item => item.classList.toggle("active", item === button)); renderLibrary(button.dataset.filter); }));
 els.midi.addEventListener("change", async event => { const file = event.target.files[0]; if (!file) return; try { stopListening(); song = parseMidi(await file.arrayBuffer()); currentIndex = 0; combo = 0; els.comboValue.textContent = "×0"; els.title.textContent = song.name; els.composer.textContent = `${file.name} · ${song.notes.length} notes`; render(); showToast(`Ready — ${song.notes.length} notes loaded locally`); } catch (error) { showToast(error.message); } event.target.value = ""; });
 function showToast(message) { els.toast.textContent = message; els.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 3000); }
 document.addEventListener("visibilitychange", () => { if (document.hidden && listening) stopListening(); });
-renderLibrary(); render();
+els.instrumentButtons.forEach(button => { const active = button.dataset.instrument === activeInstrument; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active); }); renderJourney(); renderLibrary(); render();
