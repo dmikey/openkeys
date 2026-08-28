@@ -15,7 +15,8 @@ const els = {
   journey: $("#journey-dialog"), journeyClose: $("#journey-close"), journeyName: $("#journey-name"), journeyIcon: $("#journey-icon"), achievementGrid: $("#achievement-grid"),
   achievementTitle: $("#achievement-title"), journeyTotalNotes: $("#journey-total-notes"), railMilestone: $("#rail-milestone"), milestoneProgress: $("#milestone-progress"), railBadge: $("#rail-badge"),
   planGrid: $("#plan-grid"), planTitle: $("#plan-title"), inputButtons: [...document.querySelectorAll("[data-input]")], inputStatus: $("#input-status"),
-  profileButton: $("#profile-button"), profileAvatar: $("#profile-avatar"), profileName: $("#profile-name"), profiles: $("#profiles-dialog"), profilesClose: $("#profiles-close"), profilesGrid: $("#profiles-grid"), profileForm: $("#profile-form"), profileNameInput: $("#profile-name-input")
+  profileButton: $("#profile-button"), profileAvatar: $("#profile-avatar"), profileName: $("#profile-name"), profiles: $("#profiles-dialog"), profilesClose: $("#profiles-close"), profilesGrid: $("#profiles-grid"), profileForm: $("#profile-form"), profileNameInput: $("#profile-name-input"),
+  journeySetup: $("#journey-setup"), journeySetupIcon: $("#journey-setup-icon"), journeySetupLabel: $("#journey-setup-label"), setup: $("#setup-dialog"), setupClose: $("#setup-close"), setupTitle: $("#setup-title"), setupCopy: $("#setup-copy"), setupListen: $("#setup-listen"), setupComplete: $("#setup-complete"), tunerTarget: $("#tuner-target"), tunerNote: $("#tuner-note"), tunerCents: $("#tuner-cents"), tunerNeedle: $("#tuner-needle")
 };
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -60,6 +61,7 @@ function loadProfileInstrument(id = activeProfileId) { try { return localStorage
 let game = loadProfileGame();
 let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0, lastStrumAt = 0, lastStrumLevel = 0, recognitionMutedUntil = 0, pendingChordAt = 0, midiAccess;
 let previewIndex = null, previewFrame = 0, previewing = false;
+let setupStream, setupFrame, setupListening = false, setupDetected = false;
 let activeInput = "mic"; const midiPressed = new Set();
 const guitarToneCache = new Map();
 let activeInstrument = loadProfileInstrument() === "guitar" ? "guitar" : "piano";
@@ -154,6 +156,7 @@ function completedStages(id = activeInstrument) { return CURRICULA[id].filter(pl
 
 function renderPlan() {
   const plans = CURRICULA[activeInstrument]; els.planTitle.textContent = `${INSTRUMENTS[activeInstrument].name} foundations`; els.planGrid.innerHTML = "";
+  const setupDone = Boolean(journeyProgress().setupComplete), setupItem = document.createElement("button"); setupItem.type = "button"; setupItem.className = `setup-stage${setupDone ? " complete" : ""}`; setupItem.innerHTML = `<span>${setupDone ? "✓" : "00"}</span><div><small>GET READY</small><strong>${activeInstrument === "guitar" ? "Tune your guitar" : "Check your setup"}</strong><em>${activeInstrument === "guitar" ? "Six-string tuner" : "Microphone and note check"}</em></div><b>${setupDone ? "CHECK AGAIN" : "START"}</b>`; setupItem.addEventListener("click",openSetup); els.planGrid.append(setupItem);
   plans.forEach((plan,index) => { const complete = planComplete(plan), unlocked = planUnlocked(plan), item = document.createElement("button"); item.type = "button"; item.className = `${complete ? "complete" : ""}${unlocked ? "" : " locked"}`; item.disabled = !unlocked; item.innerHTML = `<span>${complete ? "✓" : String(index + 1).padStart(2,"0")}</span><div><small>${index < 2 ? "FOUNDATION" : index < 4 ? "PLAY WITH OTHERS" : "MUSICIANSHIP"}</small><strong>${plan.title}</strong><em>${plan.skill}</em></div><b>${complete ? "REPLAY" : unlocked ? "START" : "LOCKED"}</b>`; item.addEventListener("click", () => startPlan(plan)); els.planGrid.append(item); });
 }
 
@@ -175,6 +178,7 @@ function achievementsFor(id = activeInstrument) {
 function renderJourney() {
   const stats = journeyStats(), achievements = achievementsFor(), next = achievements.find(item => !item.test(stats));
   els.journeyName.textContent = INSTRUMENTS[activeInstrument].name; els.journeyIcon.textContent = activeInstrument === "piano" ? "🎹" : "🎸";
+  els.journeySetupIcon.textContent = activeInstrument === "piano" ? "🎹" : "🎸"; els.journeySetupLabel.textContent = activeInstrument === "piano" ? "Check piano setup" : "Tune guitar";
   els.achievementTitle.textContent = `${INSTRUMENTS[activeInstrument].name} journey`; els.journeyTotalNotes.textContent = `${stats.notes} note${stats.notes === 1 ? "" : "s"} played`;
   $("#piano-journey-stat").textContent = `${journeyStats("piano").songs} songs mastered`; $("#guitar-journey-stat").textContent = `${journeyStats("guitar").songs} songs mastered`;
   renderPlan(); els.achievementGrid.innerHTML = ""; achievements.forEach(item => { const unlocked = item.test(stats), card = document.createElement("article"); card.className = unlocked ? "unlocked" : ""; card.innerHTML = `<span>${unlocked ? item.icon : "◇"}</span><div><strong>${item.title}</strong><small>${item.copy}</small></div><b>${unlocked ? "UNLOCKED" : "LOCKED"}</b>`; els.achievementGrid.append(card); });
@@ -398,6 +402,18 @@ function stopListening() {
   if (currentIndex < song.notes.length) { els.statusTitle.textContent = "Listening paused"; els.statusCopy.textContent = "Tap Start listening when you’re ready"; }
 }
 
+const tunedStrings = new Set();
+function stopSetupListening() { setupListening = false; cancelAnimationFrame(setupFrame); setupStream?.getTracks().forEach(track => track.stop()); setupStream = null; els.setupListen.textContent = "Start microphone check"; }
+function openSetup() { stopSetupListening(); stopListening(); setupDetected = false; tunedStrings.clear(); els.setupComplete.disabled = !journeyProgress().setupComplete; const guitar = activeInstrument === "guitar"; els.setupTitle.textContent = guitar ? "Tune your guitar" : "Check your piano setup"; els.setupCopy.textContent = guitar ? "Play each open string. OpenKeys will show whether it is flat or sharp and remember strings that reach tune." : "Play any key so OpenKeys can confirm that your microphone can hear and identify it."; els.tunerTarget.textContent = guitar ? "0 OF 6 STRINGS READY" : "PLAY ANY NOTE"; els.tunerNote.textContent = "—"; els.tunerCents.textContent = "Waiting for sound"; els.tunerNeedle.style.left = "50%"; els.setup.showModal(); }
+async function startSetupListening() {
+  if (setupListening) { stopSetupListening(); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { showToast("Microphone input is not supported in this browser."); return; }
+  try { initAudio(); setupStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); const analyser = audioContext.createAnalyser(); analyser.fftSize = 2048; audioContext.createMediaStreamSource(setupStream).connect(analyser); const buffer = new Float32Array(analyser.fftSize); setupListening = true; els.setupListen.textContent = "Stop listening";
+    const detect = () => { if (!setupListening) return; analyser.getFloatTimeDomainData(buffer); const frequency = autoCorrelate(buffer,audioContext.sampleRate); if (frequency > 0) { const exactMidi = 69 + 12 * Math.log2(frequency / 440); if (activeInstrument === "guitar") { const target = GUITAR_STRINGS.reduce((best,string) => Math.abs(exactMidi - string.pitch) < Math.abs(exactMidi - best.pitch) ? string : best), cents = Math.round((exactMidi - target.pitch) * 100), centered = Math.max(-50,Math.min(50,cents)); els.tunerNote.textContent = target.label; els.tunerCents.textContent = Math.abs(cents) <= 10 ? "In tune" : `${Math.abs(cents)} cents ${cents < 0 ? "flat" : "sharp"}`; els.tunerNeedle.style.left = `${50 + centered * .9}%`; if (Math.abs(cents) <= 10) tunedStrings.add(target.pitch); els.tunerTarget.textContent = `${tunedStrings.size} OF 6 STRINGS READY`; setupDetected = tunedStrings.size === 6; } else { const midi = Math.round(exactMidi), cents = Math.round((exactMidi - midi) * 100); els.tunerNote.textContent = noteLabel(midi); els.tunerCents.textContent = `${cents > 0 ? "+" : ""}${cents} cents · microphone ready`; els.tunerNeedle.style.left = `${50 + Math.max(-50,Math.min(50,cents)) * .9}%`; setupDetected = true; } els.setupComplete.disabled = !setupDetected; } setupFrame = requestAnimationFrame(detect); }; setupFrame = requestAnimationFrame(detect);
+  } catch (_) { showToast("Allow microphone access to run the instrument check."); }
+}
+function completeSetup() { if (!setupDetected && !journeyProgress().setupComplete) return; const progress = journeyProgress(), firstCompletion = !progress.setupComplete; if (firstCompletion) { progress.setupComplete = true; game.xp += 25; saveGame(); } stopSetupListening(); renderJourney(); els.setup.close(); showToast(firstCompletion ? "Setup complete · +25 XP" : "Setup check complete"); }
+
 function playTarget(note,when,duration) { if (note.strum) note.chordPitches.forEach((pitch,index) => playGuitarTone(pitch,when + index * .025,duration,note.velocity)); else if (note.pitches?.length > 1) note.pitches.forEach((pitch,index) => playPianoTone(pitch,when + index * .012,duration,note.velocity)); else playTone(note.midi,when,duration,note.velocity); }
 function playPhrase() {
   if (previewing) return;
@@ -452,6 +468,7 @@ els.inputButtons.forEach(button => button.addEventListener("click", () => setInp
 els.profileButton.addEventListener("click",() => { renderProfiles(); els.profiles.showModal(); }); els.profilesClose.addEventListener("click",() => els.profiles.close()); els.profiles.addEventListener("click",event => { if (event.target === els.profiles) els.profiles.close(); });
 els.profileForm.addEventListener("submit",event => { event.preventDefault(); const name = els.profileNameInput.value.trim(); if (!name) return; if (family.profiles.length >= 6) { showToast("This device can hold up to six family profiles."); return; } const profile = {id:`player-${Date.now()}`,name,color:PROFILE_COLORS[family.profiles.length % PROFILE_COLORS.length]}; family.profiles.push(profile); els.profileNameInput.value = ""; saveFamily(); activateProfile(profile.id); });
 els.journeyButton.addEventListener("click", () => { renderJourney(); els.journey.showModal(); }); els.railJourney.addEventListener("click", () => { renderJourney(); els.journey.showModal(); }); els.journeyClose.addEventListener("click", () => els.journey.close()); els.journey.addEventListener("click", event => { if (event.target === els.journey) els.journey.close(); });
+els.journeySetup.addEventListener("click",openSetup); els.setupListen.addEventListener("click",startSetupListening); els.setupComplete.addEventListener("click",completeSetup); els.setupClose.addEventListener("click",() => { stopSetupListening(); els.setup.close(); }); els.setup.addEventListener("click",event => { if (event.target === els.setup) { stopSetupListening(); els.setup.close(); } });
 document.querySelectorAll(".library-filter button").forEach(button => button.addEventListener("click", () => { document.querySelectorAll(".library-filter button").forEach(item => item.classList.toggle("active", item === button)); renderLibrary(button.dataset.filter); }));
 els.midi.addEventListener("change", async event => { const file = event.target.files[0]; if (!file) return; try { stopListening(); song = parseMidi(await file.arrayBuffer()); currentIndex = 0; combo = 0; els.comboValue.textContent = "×0"; els.title.textContent = song.name; els.composer.textContent = `${file.name} · ${song.notes.length} notes`; render(); showToast(`Ready — ${song.notes.length} notes loaded locally`); } catch (error) { showToast(error.message); } event.target.value = ""; });
 const toastHome = els.toast.parentNode;
