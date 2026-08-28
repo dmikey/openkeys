@@ -15,6 +15,9 @@ const els = {
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+const ACCEPTANCE_CENTS = 49;
+const MATCHES_NEEDED = 2;
+const MATCH_WINDOW = 4;
 const makeNotes = (pitches, beat = .5) => pitches.map((midi, i) => ({ midi, start: i * beat, duration: beat * .88, velocity: .75 }));
 const LESSONS = [
   { id:"ode", name:"Ode to Joy", composer:"L. van Beethoven", level:"Beginner", reward:150, cover:"joy", glyph:"♪", fingers:[3,3,4,5,5,4,3,2,1,1,2,3,3,2,2,3,3,4,5,5,4,3,2,1,1,2,3,2,1,1], pitches:[64,64,65,67,67,65,64,62,60,60,62,64,64,62,62,64,64,65,67,67,65,64,62,60,60,62,64,62,60,60] },
@@ -27,7 +30,7 @@ const LESSONS = [
 ].map(lesson => ({...lesson, notes:makeNotes(lesson.pitches)}));
 let song = LESSONS[0];
 let game = (() => { try { return JSON.parse(localStorage.getItem("openkeys-progress")) || {xp:0, lessons:{}}; } catch (_) { return {xp:0, lessons:{}}; } })();
-let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, lastAnalysis = 0;
+let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0;
 
 function noteName(midi) { return NOTE_NAMES[((midi % 12) + 12) % 12]; }
 function noteOctave(midi) { return Math.floor(midi / 12) - 1; }
@@ -58,13 +61,21 @@ function staffY(midi) {
 
 function saveGame() { try { localStorage.setItem("openkeys-progress", JSON.stringify(game)); } catch (_) {} }
 
+function sectionSize() {
+  if (song.notes.length > 160) return Math.ceil(song.notes.length / 5 / 16) * 16;
+  if (song.notes.length > 64) return 32;
+  return 16;
+}
+
 function renderPhrases() {
-  const size = 16, count = Math.ceil(song.notes.length / size), active = Math.min(count - 1, Math.floor(currentIndex / size));
+  const size = sectionSize(), count = Math.ceil(song.notes.length / size), active = Math.min(count - 1, Math.floor(currentIndex / size));
+  const stageNames = ["Opening", "Build", "Core theme", "Variation", "Finale"];
   els.phraseList.innerHTML = ""; els.partLabel.textContent = `PART ${active + 1} OF ${count}`; els.lessonHeading.textContent = song.name;
   for (let i = 0; i < count; i++) {
     const start = i * size + 1, end = Math.min(song.notes.length, (i + 1) * size), item = document.createElement("li");
     if (i === active) item.className = "active";
-    item.innerHTML = `<span class="phrase-number">${String(i + 1).padStart(2,"0")}</span><div><strong>${i === 0 ? "Opening phrase" : i === count - 1 ? "Final phrase" : `Phrase ${i + 1}`}</strong><small>Notes ${start}–${end}</small></div>${i === active ? '<span class="phrase-state" aria-label="In progress"></span>' : ''}`;
+    const label = count <= 2 ? (i === 0 ? "Opening phrase" : "Final phrase") : (stageNames[i] || `Stage ${i + 1}`);
+    item.innerHTML = `<span class="phrase-number">${String(i + 1).padStart(2,"0")}</span><div><strong>${label}</strong><small>Notes ${start}–${end}</small></div>${i === active ? '<span class="phrase-state" aria-label="In progress"></span>' : ''}`;
     els.phraseList.append(item);
   }
 }
@@ -87,7 +98,7 @@ function renderLibrary(filter = "all") {
 
 function selectLesson(id) {
   const lesson = LESSONS.find(item => item.id === id); if (!lesson) return;
-  stopListening(); song = lesson; currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; els.comboValue.textContent = "×0"; els.title.textContent = lesson.name; els.composer.textContent = `${lesson.composer} · ${lesson.level}`;
+  stopListening(); song = lesson; currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; matchHistory = []; els.comboValue.textContent = "×0"; els.title.textContent = lesson.name; els.composer.textContent = `${lesson.composer} · ${lesson.level}`;
   els.statusTitle.textContent = "Ready to listen"; els.statusCopy.textContent = "Turn on your microphone to begin"; render(); els.library.close(); showToast(`${lesson.name} is ready to learn`);
 }
 
@@ -141,7 +152,7 @@ function render() {
 }
 
 function advance() {
-  currentIndex++; combo++; wrongFrames = 0; els.comboValue.textContent = `×${combo}`; els.comboValue.classList.remove("xp-pop"); requestAnimationFrame(() => els.comboValue.classList.add("xp-pop"));
+  currentIndex++; combo++; wrongFrames = 0; matchHistory = []; els.comboValue.textContent = `×${combo}`; els.comboValue.classList.remove("xp-pop"); requestAnimationFrame(() => els.comboValue.classList.add("xp-pop"));
   if (song.id) {
     const record = game.lessons[song.id] ||= {best:0, stars:0, rewarded:false};
     if (currentIndex > record.best) { record.best = currentIndex; game.xp += 5; }
@@ -157,8 +168,10 @@ function updateHeard(frequency) {
   const exactMidi = 69 + 12 * Math.log2(frequency / 440), midi = Math.round(exactMidi), cents = Math.round((exactMidi - midi) * 100);
   els.heardNote.textContent = noteLabel(midi); els.heardCents.textContent = `${cents > 0 ? "+" : ""}${cents} cents`; els.pitchIndicator.style.left = `${Math.max(2, Math.min(98, 50 + cents))}%`;
   const target = song.notes[currentIndex];
-  if (target && midi === target.midi && Math.abs(cents) < 38) { correctFrames++; wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = "Hold it just a moment…"; if (correctFrames >= 3) advance(); }
-  else { correctFrames = 0; if (target && midi !== target.midi) wrongFrames++; if (wrongFrames >= 4 && combo > 0) { combo = 0; els.comboValue.textContent = "×0"; wrongFrames = 0; } els.statusTitle.textContent = `Listening for ${target ? noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = midi === target?.midi ? "Very close — let the note ring" : "Try the highlighted key and finger"; }
+  const matches = Boolean(target && midi === target.midi && Math.abs(cents) <= ACCEPTANCE_CENTS);
+  matchHistory.push(matches); if (matchHistory.length > MATCH_WINDOW) matchHistory.shift(); correctFrames = matchHistory.filter(Boolean).length;
+  if (matches) { wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = correctFrames < MATCHES_NEEDED ? "Let it ring…" : "Got it!"; if (correctFrames >= MATCHES_NEEDED) advance(); }
+  else { if (target && midi !== target.midi) wrongFrames++; if (wrongFrames >= 5 && combo > 0) { combo = 0; els.comboValue.textContent = "×0"; wrongFrames = 0; } els.statusTitle.textContent = `Listening for ${target ? noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = midi === target?.midi ? "Close enough — let the note settle" : "Try the highlighted key and finger"; }
 }
 
 function autoCorrelate(buffer, sampleRate) {
@@ -211,7 +224,7 @@ function parseMidi(buffer) {
 }
 
 els.mic.addEventListener("click", startListening); els.reference.addEventListener("click", () => song.notes[currentIndex] && playTone(song.notes[currentIndex].midi)); els.hearPhrase.addEventListener("click", playPhrase);
-els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; els.comboValue.textContent = "×0"; render(); els.statusTitle.textContent = listening ? `Listening for ${noteLabel(song.notes[0].midi)}` : "Ready to listen"; els.statusCopy.textContent = listening ? "Play the highlighted note" : "Turn on your microphone to begin"; });
+els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; matchHistory = []; els.comboValue.textContent = "×0"; render(); els.statusTitle.textContent = listening ? `Listening for ${noteLabel(song.notes[0].midi)}` : "Ready to listen"; els.statusCopy.textContent = listening ? "Play the highlighted note" : "Turn on your microphone to begin"; });
 els.settings.addEventListener("click", () => els.help.showModal()); els.dialogClose.addEventListener("click", () => els.help.close()); els.help.addEventListener("click", event => { if (event.target === els.help) els.help.close(); });
 els.libraryButton.addEventListener("click", () => { renderLibrary(); els.library.showModal(); }); els.libraryClose.addEventListener("click", () => els.library.close());
 els.library.addEventListener("click", event => { if (event.target === els.library) els.library.close(); });
