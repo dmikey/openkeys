@@ -119,3 +119,7 @@ main{position:relative}.topbar{grid-template-columns:240px 1fr 330px}.library-bu
 
 /* Profile removal is secondary and always confirmed before local data is deleted. */
 .profile-row{position:relative;min-width:0}.profiles-grid .profile-row>.profile-select{width:100%;padding-right:60px}.profiles-grid .profile-row>.profile-remove{position:absolute;right:8px;bottom:7px;width:auto;min-height:22px;padding:0 5px;display:block;border:0;background:transparent;color:#a34a43;font:600 .4rem/1 "DM Mono",monospace;cursor:pointer}.profiles-grid .profile-row>.profile-remove:hover{text-decoration:underline}.profiles-grid .profile-row>.profile-remove:focus-visible{outline-width:2px;outline-offset:1px}
+
+/* Compact project and support details in Help & Setup. */
+.help-about{margin-top:22px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:16px}.help-about small,.help-about strong{display:block}.help-about small{color:var(--muted);font:500 .42rem/1 "DM Mono",monospace;letter-spacing:.12em}.help-about strong{margin-top:5px;font-size:.62rem}.help-links{display:flex;gap:7px}.help-links a{padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--blue);text-decoration:none;font-size:.55rem;font-weight:700}.help-links a:hover{background:var(--blue-soft)}
+@media(max-width:480px){.help-dialog{padding:28px 22px}.help-about{align-items:flex-start;flex-direction:column}.help-links{width:100%}.help-links a{flex:1;text-align:center}}
