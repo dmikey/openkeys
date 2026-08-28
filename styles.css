@@ -102,3 +102,6 @@ main{position:relative}.topbar{grid-template-columns:240px 1fr 330px}.library-bu
 .brand{width:100%;padding-right:0;gap:13px;justify-content:flex-start}.brand .brand-word{width:124px;flex:0 0 124px;display:flex;align-items:center;justify-content:space-between;letter-spacing:0}.brand-word i{font:inherit;font-style:normal}
 @media(max-width:1050px){.brand{gap:10px}.brand .brand-word{width:112px;flex-basis:112px}}
 @media(max-width:680px){.brand{width:auto}.brand .brand-word{width:auto;flex-basis:auto;gap:.12em}}
+
+/* Two listening choices only; connection feedback remains available to assistive tech. */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.input-source button{flex:1}.input-source>span.sr-only{position:absolute!important;margin:-1px!important;padding:0!important}
