@@ -42,7 +42,7 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 ## Browser support
 
-Recent versions of Chrome, Edge, Firefox, and Safari are supported. The layout is optimized for a tablet in landscape orientation on a music stand. Microphone recognition works best in a quiet room with one note played at a time.
+Recent versions of Chrome, Edge, Firefox, and Safari are supported. Dedicated layouts are provided for tablets in landscape orientation and phones in portrait orientation, including the 414 × 896 iPhone 11 viewport. Microphone recognition works best in a quiet room with one note played at a time.
 
 ## Roadmap
 
