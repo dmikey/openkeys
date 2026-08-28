@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="OpenKeys listens to your real piano and guides you through any MIDI song, one note at a time." />
+  <meta name="theme-color" content="#10203d" />
+  <title>OpenKeys — Your piano, your pace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip-link" href="#coach">Skip to lesson</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="OpenKeys home">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M7 21.5 20 8l13 13.5L20 35 7 21.5Z"/><circle cx="20" cy="21.5" r="5"/></svg>
+        <span>OPENKEYS</span>
+      </a>
+      <div class="lesson-name"><span id="song-title">Ode to Joy</span><small id="song-composer">L. van Beethoven · Beginner</small></div>
+      <div class="top-actions">
+        <button class="quiet-button" id="settings-button" type="button" aria-label="Open help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 3.2 2.3c-.8.4-.9.8-.9 1.7M12 16.8h.01"/></svg></button>
+        <label class="import-button" for="midi-input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 13v7h14v-7"/></svg><span>Open MIDI</span></label>
+        <input id="midi-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
+      </div>
+    </header>
+
+    <main id="coach">
+      <aside class="lesson-rail">
+        <div class="rail-heading"><span class="chapter-label">PART 1 OF 1</span><strong>First melody</strong></div>
+        <ol class="phrase-list" aria-label="Lesson phrases">
+          <li class="active"><span class="phrase-number">01</span><div><strong>Opening phrase</strong><small>Notes 1–15</small></div><span class="phrase-state" aria-label="In progress"></span></li>
+          <li><span class="phrase-number">02</span><div><strong>Answer phrase</strong><small>Notes 16–30</small></div></li>
+        </ol>
+        <div class="rail-tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4M8.5 14.5A6 6 0 1 1 16 14c-.8.7-1 1.2-1 2H9c0-.7-.1-1.1-.5-1.5Z"/></svg><div><strong>Take your time</strong><p>The music waits for you. Play the highlighted note to move forward.</p></div></div>
+        <div class="lesson-progress"><div><span>LESSON PROGRESS</span><strong id="progress-text">0 / 30</strong></div><div class="progress-track"><i id="progress-bar"></i></div></div>
+      </aside>
+
+      <section class="practice-space">
+        <div class="practice-header">
+          <div class="follow-status"><span class="live-dot"></span><div><strong id="status-title">Ready to listen</strong><small id="status-copy">Turn on your microphone to begin</small></div></div>
+          <div class="header-controls">
+            <button class="text-button" id="hear-phrase" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 9a4 4 0 0 1 0 6"/></svg>Hear phrase</button>
+            <button class="text-button" id="restart-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v5h5M6 9a7.5 7.5 0 1 1-1 5"/></svg>Restart</button>
+          </div>
+        </div>
+
+        <div class="score-window" aria-label="Current and upcoming notes">
+          <div class="count-strip" id="count-strip" aria-hidden="true"></div>
+          <div class="staff" id="staff">
+            <div class="staff-lines" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="clef" aria-hidden="true">𝄞</div>
+            <div class="notes-track" id="notes-track"></div>
+            <div class="focus-column" aria-hidden="true"><span></span></div>
+          </div>
+          <div class="score-caption"><span>PLAY NOW</span><span>COMING NEXT</span></div>
+        </div>
+
+        <div class="coach-panel">
+          <div class="target-note" aria-live="polite"><span class="target-kicker">YOUR NOTE</span><strong id="target-name">E</strong><div><span id="target-octave">Octave 4</span><i></i><span id="target-hand">Right hand</span></div></div>
+          <div class="pitch-center"><span class="heard-label">MICROPHONE</span><div class="heard-note"><span id="heard-note">—</span><small id="heard-cents">Play a note</small></div><div class="pitch-meter" aria-label="Pitch accuracy"><span>-50</span><div class="meter-line"><i id="pitch-indicator"></i><b></b></div><span>+50</span></div></div>
+          <div class="mic-action">
+            <button id="mic-button" class="listen-button" type="button"><span class="button-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4Zm-7-4a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></span><span><strong>Start listening</strong><small>Uses your device microphone</small></span></button>
+            <button id="reference-button" class="reference-button" type="button">Play reference E4</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your piano is the controller.</h2><p>Place this tablet on your music stand, allow microphone access, and play the highlighted note on your acoustic or digital piano. OpenKeys identifies the pitch and moves the music forward only when you are ready.</p><ul><li>For best results, practice in a quiet room.</li><li>Play one note at a time and let it ring briefly.</li><li>Your audio never leaves this device.</li></ul></dialog>
+  <div class="celebration" id="celebration" aria-live="polite"><span>✓</span><strong>That’s it!</strong><small>Moving to the next note</small></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
