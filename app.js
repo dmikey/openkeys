@@ -352,10 +352,10 @@ function updateHeard(frequency) {
   const exactMidi = 69 + 12 * Math.log2(frequency / 440), midi = Math.round(exactMidi), cents = Math.round((exactMidi - midi) * 100);
   els.heardNote.textContent = noteLabel(midi); els.heardCents.textContent = `${cents > 0 ? "+" : ""}${cents} cents`; els.pitchIndicator.style.left = `${Math.max(2, Math.min(98, 50 + cents))}%`;
   const target = song.notes[currentIndex];
-  const matches = Boolean(target && midi === target.midi && Math.abs(cents) <= ACCEPTANCE_CENTS);
+  const pitchMatches = Boolean(target && (activeInstrument === "guitar" ? midi % 12 === target.midi % 12 : midi === target.midi)), matches = pitchMatches && Math.abs(cents) <= ACCEPTANCE_CENTS;
   matchHistory.push(matches); if (matchHistory.length > MATCH_WINDOW) matchHistory.shift(); correctFrames = matchHistory.filter(Boolean).length;
-  if (matches) { wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = correctFrames < MATCHES_NEEDED ? "Let it ring…" : "Got it!"; if (correctFrames >= MATCHES_NEEDED) advance(); }
-  else { if (target && midi !== target.midi) wrongFrames++; if (wrongFrames >= 5 && combo > 0) { combo = 0; els.comboValue.textContent = "×0"; wrongFrames = 0; } els.statusTitle.textContent = `Listening for ${target ? noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = midi === target?.midi ? "Close enough — let the note settle" : "Try the highlighted key and finger"; }
+  if (matches) { wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = correctFrames < MATCHES_NEEDED ? activeInstrument === "guitar" && midi !== target.midi ? "Right note — octave accepted" : "Let it ring…" : "Got it!"; if (correctFrames >= MATCHES_NEEDED) advance(); }
+  else { if (target && !pitchMatches) wrongFrames++; if (wrongFrames >= 5 && combo > 0) { combo = 0; els.comboValue.textContent = "×0"; wrongFrames = 0; } els.statusTitle.textContent = `Listening for ${target ? activeInstrument === "guitar" ? noteName(target.midi) : noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = pitchMatches ? "Right note — let the pitch settle" : activeInstrument === "guitar" ? "Try the highlighted string and fret" : "Try the highlighted key and finger"; }
 }
 
 function autoCorrelate(buffer, sampleRate) {
