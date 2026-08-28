@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260828-23" />
+  <link rel="stylesheet" href="styles.css?v=20260828-26" />
 </head>
 <body>
   <a class="skip-link" href="#coach">Skip to lesson</a>
@@ -56,7 +56,7 @@
         <div class="practice-header">
           <div class="follow-status"><span class="live-dot"></span><div><strong id="status-title">Ready to listen</strong><small id="status-copy">Turn on your microphone to begin</small></div></div>
           <div class="header-controls">
-            <button class="text-button" id="hear-phrase" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 9a4 4 0 0 1 0 6"/></svg><span id="phrase-label">Hear piano phrase</span></button>
+            <button class="text-button" id="hear-phrase" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5ZM15.5 9a4 4 0 0 1 0 6"/></svg><span id="phrase-label">Preview song</span></button>
             <button class="text-button" id="restart-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v5h5M6 9a7.5 7.5 0 1 1-1 5"/></svg>Restart</button>
           </div>
         </div>
@@ -86,7 +86,6 @@
             <div class="input-source" role="group" aria-label="How OpenKeys listens"><button class="active" data-input="mic" type="button">Device microphone</button><button data-input="midi" type="button">MIDI keyboard</button><span class="sr-only" id="input-status" aria-live="polite">Using device microphone</span></div>
             <div class="combo-card"><span>COMBO</span><strong id="combo-value">×0</strong><small>Correct notes in a row</small></div>
             <button id="mic-button" class="listen-button" type="button"><span class="button-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4Zm-7-4a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></span><span><strong>Start listening</strong><small>Uses your device microphone</small></span></button>
-            <button id="reference-button" class="reference-button" type="button">Play reference E4</button>
           </div>
         </div>
       </section>
@@ -122,6 +121,6 @@
   <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your instrument is the controller.</h2><p>Begin with a short guided excerpt, then unlock ensemble, coordination, and rhythm lessons. OpenKeys listens to your real instrument and lets the accompaniment answer what you play.</p><ul><li>Piano progresses from right-hand melody to a two-staff, two-hand guide.</li><li>Guitar progresses from single notes to chord shapes and detected down/up strums.</li><li>Flexible recognition allows for natural tuning and microphone variation.</li><li>Your audio never leaves this device.</li></ul></dialog>
   <div class="celebration" id="celebration" aria-live="polite"><span>✓</span><strong>That’s it!</strong><small>Moving to the next note</small></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260828-16"></script>
+  <script src="app.js?v=20260828-19"></script>
 </body>
 </html>
