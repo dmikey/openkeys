@@ -40,6 +40,10 @@ python3 -m http.server 8080
 
 Then open [http://localhost:8080](http://localhost:8080).
 
+## Install on iPhone or iPad
+
+Open the hosted app in Safari, tap **Share**, then choose **Add to Home Screen**. OpenKeys launches in standalone mode with notch-safe layouts and no separate browser bar. If the icon was installed before the standalone metadata was added, remove that Home Screen icon and add it again so iOS refreshes the saved launch settings.
+
 ## Browser support
 
 Recent versions of Chrome, Edge, Firefox, and Safari are supported. Dedicated layouts are provided for landscape tablets and both phone orientations, including the 414 × 896 and 896 × 414 iPhone 11 viewports. Landscape phones place the score and compact fingering coach side by side. Microphone recognition works best in a quiet room with one note played at a time.

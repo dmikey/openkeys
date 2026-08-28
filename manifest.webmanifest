@@ -1,0 +1,26 @@
+{
+  "name": "OpenKeys — Piano Coach",
+  "short_name": "OpenKeys",
+  "description": "Learn piano from MIDI using your real instrument and microphone.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fffefd",
+  "theme_color": "#fffefd",
+  "categories": ["education", "music"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
