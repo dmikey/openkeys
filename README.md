@@ -26,6 +26,10 @@ OpenKeys is a free, tablet-first piano coach that turns standard MIDI files into
 
 The built-in catalog includes learning arrangements of works by Beethoven, Mozart, Bach, and James Lord Pierpont, plus the traditional French melody commonly known as “Twinkle, Twinkle, Little Star.” The underlying compositions are in the public domain. The simplified note sequences and abstract cover artwork in this repository are original project assets released under the repository license.
 
+### Game music and community MIDI
+
+- **Aria Math — C418:** [Aria Math - C418 (Modified MIDI Import) \[4/10/2020\]](https://onlinesequencer.net/1427781) by [Mr. Magicman](https://onlinesequencer.net/members/26737). The lesson uses the melody track from the attributed MIDI import. “Aria Math” is a copyrighted C418 composition and is not part of the public-domain catalog.
+
 ## Run locally
 
 Browsers require a secure context for microphone access. Start a local server rather than opening the HTML file directly:

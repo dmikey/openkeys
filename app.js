@@ -22,7 +22,8 @@ const LESSONS = [
   { id:"jingle", name:"Jingle Bells", composer:"James Lord Pierpont", level:"Beginner", reward:140, cover:"bells", glyph:"♬", pitches:[64,64,64,64,64,64,64,67,60,62,64,65,65,65,65,65,64,64,64,64,62,62,64,62,67,64,64,64,64,64,64,64,67,60,62,64] },
   { id:"fur", name:"Für Elise", composer:"L. van Beethoven", level:"Intermediate", reward:250, cover:"fur", glyph:"E", fingers:[5,4,5,4,5,3,4,2,1,1,2,4,5,1,3,5,1,2,5,4,5,4,5,3,4,2,1,1,2,4,5,1,2,1,1], pitches:[76,75,76,75,76,71,74,72,69,60,64,69,71,64,68,71,72,64,76,75,76,75,76,71,74,72,69,60,64,69,71,64,72,71,69] },
   { id:"mozart", name:"Eine kleine Nachtmusik", composer:"W. A. Mozart", level:"Intermediate", reward:280, cover:"mozart", glyph:"M", pitches:[67,74,67,74,67,74,67,71,74,71,74,71,67,71,67,71,67,66,64,66,64,62,64,62,59,62,67,66,64,66,67,71,74] },
-  { id:"bach", name:"Prelude in C Major", composer:"J. S. Bach", level:"Intermediate", reward:300, cover:"bach", glyph:"B", pitches:[60,64,67,72,76,67,72,76,60,62,69,74,77,69,74,77,59,62,67,74,77,67,74,77,60,64,67,72,76,67,72,76] }
+  { id:"bach", name:"Prelude in C Major", composer:"J. S. Bach", level:"Intermediate", reward:300, cover:"bach", glyph:"B", pitches:[60,64,67,72,76,67,72,76,60,62,69,74,77,69,74,77,59,62,67,74,77,67,74,77,60,64,67,72,76,67,72,76] },
+  { id:"aria-math", name:"Aria Math", composer:"C418", level:"Advanced", category:"game", reward:600, cover:"aria", glyph:"◇", sourceUrl:"https://onlinesequencer.net/1427781", arrangerUrl:"https://onlinesequencer.net/members/26737", sourceLabel:"Modified MIDI Import · 4/10/2020", pitches:[76,67,64,76,71,71,76,76,76,76,76,76,76,76,83,67,71,67,71,76,71,71,72,71,72,71,72,67,67,67,72,76,71,64,67,67,71,67,64,76,76,72,71,64,67,71,76,79,72,71,71,64,64,64,76,64,64,64,76,71,72,71,64,67,64,64,64,71,71,64,71,64,64,71,64,71,71,64,71,64,64,66,67,66,67,66,62,64,67,64,67,67,64,76,83,71,67,74,66,71,71,67,74,66,71,71,67,74,66,71,76,67,79,78,76,74,76,67,79,79,81,79,78,74,76,83,76,67,79,79,81,79,78,74,76,69,74,71,69,74,71,69,71,69,71,69,71,69,71,69,71,69,71,69,71,69,71,69,71,71,67,74,71,66,64,71,83,67,74,71,66,64,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76,83,76,79,78,79,83,76,86,83,78,76] }
 ].map(lesson => ({...lesson, notes:makeNotes(lesson.pitches)}));
 let song = LESSONS[0];
 let game = (() => { try { return JSON.parse(localStorage.getItem("openkeys-progress")) || {xp:0, lessons:{}}; } catch (_) { return {xp:0, lessons:{}}; } })();
@@ -70,12 +71,17 @@ function renderPhrases() {
 
 function renderLibrary(filter = "all") {
   els.lessonGrid.innerHTML = "";
-  LESSONS.filter(lesson => filter === "all" || lesson.level.toLowerCase() === filter).forEach(lesson => {
+  const visible = LESSONS.filter(lesson => filter === "all" || (filter === "game" ? lesson.category === "game" : lesson.level.toLowerCase() === filter));
+  let lastSection = "";
+  visible.forEach(lesson => {
+    const section = lesson.category === "game" ? "Game music · Community MIDI" : "Public-domain essentials";
+    if (filter === "all" && section !== lastSection) { const heading = document.createElement("h3"); heading.className = "library-section-label"; heading.textContent = section; els.lessonGrid.append(heading); lastSection = section; }
     const record = game.lessons[lesson.id] || {}, progress = Math.round((record.best || 0) / lesson.notes.length * 100), stars = record.stars || 0;
-    const card = document.createElement("button"); card.type = "button"; card.className = "lesson-card"; card.dataset.lesson = lesson.id;
+    const card = document.createElement("article"); card.className = "lesson-card"; card.dataset.lesson = lesson.id; card.tabIndex = 0; card.setAttribute("role", "button");
     card.setAttribute("aria-label", `Learn ${lesson.name} by ${lesson.composer}`);
-    card.innerHTML = `<div class="lesson-cover cover-${lesson.cover}"><span class="cover-glyph">${lesson.glyph}</span></div><div class="lesson-card-body"><div class="lesson-card-top"><div><h3>${lesson.name}</h3><p class="composer">${lesson.composer}</p></div><span class="difficulty">${lesson.level}</span></div><div class="card-stats"><span>${lesson.notes.length} notes</span><span>${progress}% learned</span><span class="reward">+${lesson.reward} XP</span><span class="card-stars">${[1,2,3].map(n => `<i class="${n <= stars ? "earned" : ""}">★</i>`).join("")}</span></div></div>`;
-    card.addEventListener("click", () => selectLesson(lesson.id)); els.lessonGrid.append(card);
+    const attribution = lesson.sourceUrl ? `<p class="attribution"><a href="${lesson.sourceUrl}" target="_blank" rel="noreferrer">${lesson.sourceLabel}</a> by <a href="${lesson.arrangerUrl}" target="_blank" rel="noreferrer">Mr. Magicman</a></p>` : "";
+    card.innerHTML = `<div class="lesson-cover cover-${lesson.cover}"><span class="cover-glyph">${lesson.glyph}</span><span class="cover-badge">${lesson.category === "game" ? "MINECRAFT" : "OPENKEYS"}</span></div><div class="lesson-card-body"><div class="lesson-card-top"><div><h3>${lesson.name}</h3><p class="composer">${lesson.composer}</p>${attribution}</div><span class="difficulty">${lesson.level}</span></div><div class="card-stats"><span>${lesson.notes.length} notes</span><span>${progress}% learned</span><span class="reward">+${lesson.reward} XP</span><span class="card-stars">${[1,2,3].map(n => `<i class="${n <= stars ? "earned" : ""}">★</i>`).join("")}</span></div></div>`;
+    card.addEventListener("click", event => { if (!event.target.closest("a")) selectLesson(lesson.id); }); card.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectLesson(lesson.id); } }); els.lessonGrid.append(card);
   });
 }
 
