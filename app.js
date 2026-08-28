@@ -6,13 +6,24 @@ const els = {
   targetName: $("#target-name"), targetOctave: $("#target-octave"), targetHand: $("#target-hand"), heardNote: $("#heard-note"), heardCents: $("#heard-cents"),
   pitchIndicator: $("#pitch-indicator"), mic: $("#mic-button"), reference: $("#reference-button"), hearPhrase: $("#hear-phrase"), restart: $("#restart-button"),
   statusTitle: $("#status-title"), statusCopy: $("#status-copy"), followStatus: $(".follow-status"), progressText: $("#progress-text"), progressBar: $("#progress-bar"),
-  celebration: $("#celebration"), toast: $("#toast"), help: $("#help-dialog"), settings: $("#settings-button"), dialogClose: $("#dialog-close")
+  celebration: $("#celebration"), toast: $("#toast"), help: $("#help-dialog"), settings: $("#settings-button"), dialogClose: $("#dialog-close"),
+  library: $("#library-dialog"), libraryButton: $("#library-button"), libraryClose: $("#library-close"), lessonGrid: $("#lesson-grid"),
+  phraseList: $("#phrase-list"), lessonHeading: $("#lesson-heading"), partLabel: $("#part-label"), xpTotal: $("#xp-total")
 };
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-const melody = [64,64,65,67,67,65,64,62,60,60,62,64,64,62,62,64,64,65,67,67,65,64,62,60,60,62,64,62,60,60];
-let song = { name: "Ode to Joy", notes: melody.map((midi, i) => ({ midi, start: i * .5, duration: .45, velocity: .75 })) };
+const makeNotes = (pitches, beat = .5) => pitches.map((midi, i) => ({ midi, start: i * beat, duration: beat * .88, velocity: .75 }));
+const LESSONS = [
+  { id:"ode", name:"Ode to Joy", composer:"L. van Beethoven", level:"Beginner", reward:150, cover:"joy", glyph:"♪", pitches:[64,64,65,67,67,65,64,62,60,60,62,64,64,62,62,64,64,65,67,67,65,64,62,60,60,62,64,62,60,60] },
+  { id:"twinkle", name:"Twinkle, Twinkle", composer:"Traditional French melody", level:"Beginner", reward:120, cover:"twinkle", glyph:"✦", pitches:[60,60,67,67,69,69,67,65,65,64,64,62,62,60,67,67,65,65,64,64,62,67,67,65,65,64,64,62,60,60,67,67,69,69,67,65,65,64,64,62,62,60] },
+  { id:"jingle", name:"Jingle Bells", composer:"James Lord Pierpont", level:"Beginner", reward:140, cover:"bells", glyph:"♬", pitches:[64,64,64,64,64,64,64,67,60,62,64,65,65,65,65,65,64,64,64,64,62,62,64,62,67,64,64,64,64,64,64,64,67,60,62,64] },
+  { id:"fur", name:"Für Elise", composer:"L. van Beethoven", level:"Intermediate", reward:250, cover:"fur", glyph:"E", pitches:[76,75,76,75,76,71,74,72,69,60,64,69,71,64,68,71,72,64,76,75,76,75,76,71,74,72,69,60,64,69,71,64,72,71,69] },
+  { id:"mozart", name:"Eine kleine Nachtmusik", composer:"W. A. Mozart", level:"Intermediate", reward:280, cover:"mozart", glyph:"M", pitches:[67,74,67,74,67,74,67,71,74,71,74,71,67,71,67,71,67,66,64,66,64,62,64,62,59,62,67,66,64,66,67,71,74] },
+  { id:"bach", name:"Prelude in C Major", composer:"J. S. Bach", level:"Intermediate", reward:300, cover:"bach", glyph:"B", pitches:[60,64,67,72,76,67,72,76,60,62,69,74,77,69,74,77,59,62,67,74,77,67,74,77,60,64,67,72,76,67,72,76] }
+].map(lesson => ({...lesson, notes:makeNotes(lesson.pitches)}));
+let song = LESSONS[0];
+let game = (() => { try { return JSON.parse(localStorage.getItem("openkeys-progress")) || {xp:0, lessons:{}}; } catch (_) { return {xp:0, lessons:{}}; } })();
 let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, lastAnalysis = 0;
 
 function noteName(midi) { return NOTE_NAMES[((midi % 12) + 12) % 12]; }
@@ -42,6 +53,36 @@ function staffY(midi) {
   return `${-((noteOctave(midi) - 4) * 7 + degree - 2) * 12.5}px`;
 }
 
+function saveGame() { try { localStorage.setItem("openkeys-progress", JSON.stringify(game)); } catch (_) {} }
+
+function renderPhrases() {
+  const size = 16, count = Math.ceil(song.notes.length / size), active = Math.min(count - 1, Math.floor(currentIndex / size));
+  els.phraseList.innerHTML = ""; els.partLabel.textContent = `PART ${active + 1} OF ${count}`; els.lessonHeading.textContent = song.name;
+  for (let i = 0; i < count; i++) {
+    const start = i * size + 1, end = Math.min(song.notes.length, (i + 1) * size), item = document.createElement("li");
+    if (i === active) item.className = "active";
+    item.innerHTML = `<span class="phrase-number">${String(i + 1).padStart(2,"0")}</span><div><strong>${i === 0 ? "Opening phrase" : i === count - 1 ? "Final phrase" : `Phrase ${i + 1}`}</strong><small>Notes ${start}–${end}</small></div>${i === active ? '<span class="phrase-state" aria-label="In progress"></span>' : ''}`;
+    els.phraseList.append(item);
+  }
+}
+
+function renderLibrary(filter = "all") {
+  els.lessonGrid.innerHTML = "";
+  LESSONS.filter(lesson => filter === "all" || lesson.level.toLowerCase() === filter).forEach(lesson => {
+    const record = game.lessons[lesson.id] || {}, progress = Math.round((record.best || 0) / lesson.notes.length * 100), stars = record.stars || 0;
+    const card = document.createElement("button"); card.type = "button"; card.className = "lesson-card"; card.dataset.lesson = lesson.id;
+    card.setAttribute("aria-label", `Learn ${lesson.name} by ${lesson.composer}`);
+    card.innerHTML = `<div class="lesson-cover cover-${lesson.cover}"><span class="cover-glyph">${lesson.glyph}</span></div><div class="lesson-card-body"><div class="lesson-card-top"><div><h3>${lesson.name}</h3><p class="composer">${lesson.composer}</p></div><span class="difficulty">${lesson.level}</span></div><div class="card-stats"><span>${lesson.notes.length} notes</span><span>${progress}% learned</span><span class="reward">+${lesson.reward} XP</span><span class="card-stars">${[1,2,3].map(n => `<i class="${n <= stars ? "earned" : ""}">★</i>`).join("")}</span></div></div>`;
+    card.addEventListener("click", () => selectLesson(lesson.id)); els.lessonGrid.append(card);
+  });
+}
+
+function selectLesson(id) {
+  const lesson = LESSONS.find(item => item.id === id); if (!lesson) return;
+  stopListening(); song = lesson; currentIndex = 0; correctFrames = 0; els.title.textContent = lesson.name; els.composer.textContent = `${lesson.composer} · ${lesson.level}`;
+  els.statusTitle.textContent = "Ready to listen"; els.statusCopy.textContent = "Turn on your microphone to begin"; render(); els.library.close(); showToast(`${lesson.name} is ready to learn`);
+}
+
 function render() {
   const notes = song.notes, total = notes.length, target = notes[currentIndex];
   els.track.innerHTML = ""; els.counts.innerHTML = "";
@@ -57,12 +98,19 @@ function render() {
   for (let i = 0; i < 6; i++) { const count = document.createElement("span"); count.textContent = String(currentIndex + i + 1).padStart(2, "0"); els.counts.append(count); }
   if (target) { els.targetName.textContent = noteName(target.midi); els.targetOctave.textContent = `Octave ${noteOctave(target.midi)}`; els.targetHand.textContent = target.midi < 60 ? "Left hand" : "Right hand"; els.reference.textContent = `Play reference ${noteLabel(target.midi)}`; }
   const done = Math.min(currentIndex, total); els.progressText.textContent = `${done} / ${total}`; els.progressBar.style.width = `${total ? done / total * 100 : 0}%`;
-  document.querySelectorAll(".phrase-list li").forEach((item, i) => item.classList.toggle("active", i === (currentIndex < 15 ? 0 : 1)));
+  els.xpTotal.textContent = game.xp || 0; renderPhrases();
 }
 
 function advance() {
-  currentIndex++; els.celebration.classList.add("show"); clearTimeout(advance.timer); advance.timer = setTimeout(() => els.celebration.classList.remove("show"), 850);
-  if (currentIndex >= song.notes.length) { currentIndex = song.notes.length; stopListening(); els.statusTitle.textContent = "Lesson complete"; els.statusCopy.textContent = "You played every note"; showToast("Beautifully played — lesson complete!"); }
+  currentIndex++;
+  if (song.id) {
+    const record = game.lessons[song.id] ||= {best:0, stars:0, rewarded:false};
+    if (currentIndex > record.best) { record.best = currentIndex; game.xp += 5; }
+    if (currentIndex >= song.notes.length && !record.rewarded) { record.rewarded = true; record.stars = 3; game.xp += song.reward; }
+    saveGame();
+  }
+  els.celebration.classList.add("show"); clearTimeout(advance.timer); advance.timer = setTimeout(() => els.celebration.classList.remove("show"), 850);
+  if (currentIndex >= song.notes.length) { currentIndex = song.notes.length; stopListening(); render(); els.statusTitle.textContent = "Lesson complete"; els.statusCopy.textContent = song.reward ? `Three stars earned · +${song.reward} XP` : "You played every note"; showToast("Beautifully played — lesson complete!"); }
   else { render(); correctFrames = 0; }
 }
 
@@ -100,7 +148,7 @@ function stopListening() {
   if (currentIndex < song.notes.length) { els.statusTitle.textContent = "Listening paused"; els.statusCopy.textContent = "Tap Start listening when you’re ready"; }
 }
 
-function playPhrase() { const start = Math.floor(currentIndex / 15) * 15, end = Math.min(start + 15, song.notes.length); for (let i = start; i < end; i++) playTone(song.notes[i].midi, (i - start) * .37, .3, song.notes[i].velocity); }
+function playPhrase() { const start = Math.floor(currentIndex / 16) * 16, end = Math.min(start + 16, song.notes.length); for (let i = start; i < end; i++) playTone(song.notes[i].midi, (i - start) * .37, .3, song.notes[i].velocity); }
 function readVarInt(view, state) { let value = 0, byte; do { byte = view.getUint8(state.offset++); value = (value << 7) | (byte & 127); } while (byte & 128); return value; }
 
 function parseMidi(buffer) {
@@ -126,7 +174,10 @@ function parseMidi(buffer) {
 els.mic.addEventListener("click", startListening); els.reference.addEventListener("click", () => song.notes[currentIndex] && playTone(song.notes[currentIndex].midi)); els.hearPhrase.addEventListener("click", playPhrase);
 els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 0; render(); els.statusTitle.textContent = listening ? `Listening for ${noteLabel(song.notes[0].midi)}` : "Ready to listen"; els.statusCopy.textContent = listening ? "Play the highlighted note" : "Turn on your microphone to begin"; });
 els.settings.addEventListener("click", () => els.help.showModal()); els.dialogClose.addEventListener("click", () => els.help.close()); els.help.addEventListener("click", event => { if (event.target === els.help) els.help.close(); });
+els.libraryButton.addEventListener("click", () => { renderLibrary(); els.library.showModal(); }); els.libraryClose.addEventListener("click", () => els.library.close());
+els.library.addEventListener("click", event => { if (event.target === els.library) els.library.close(); });
+document.querySelectorAll(".library-filter button").forEach(button => button.addEventListener("click", () => { document.querySelectorAll(".library-filter button").forEach(item => item.classList.toggle("active", item === button)); renderLibrary(button.dataset.filter); }));
 els.midi.addEventListener("change", async event => { const file = event.target.files[0]; if (!file) return; try { stopListening(); song = parseMidi(await file.arrayBuffer()); currentIndex = 0; els.title.textContent = song.name; els.composer.textContent = `${file.name} · ${song.notes.length} notes`; render(); showToast(`Ready — ${song.notes.length} notes loaded locally`); } catch (error) { showToast(error.message); } event.target.value = ""; });
 function showToast(message) { els.toast.textContent = message; els.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 3000); }
 document.addEventListener("visibilitychange", () => { if (document.hidden && listening) stopListening(); });
-render();
+renderLibrary(); render();

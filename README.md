@@ -5,6 +5,8 @@ OpenKeys is a free, tablet-first piano coach that turns standard MIDI files into
 ## Features
 
 - Import `.mid` and `.midi` files directly in the browser
+- Browse six included lessons based on public-domain compositions
+- Original code-generated cover art, difficulty filters, XP, stars, and saved progress
 - Follow mode that waits until the player performs the correct note
 - Focused staff view with the current note and upcoming phrase
 - Live note-name, octave, and pitch-accuracy feedback
@@ -12,6 +14,10 @@ OpenKeys is a free, tablet-first piano coach that turns standard MIDI files into
 - Microphone pitch detection for acoustic or digital pianos
 - Responsive, keyboard-accessible interface
 - No account, server, tracking, or uploaded audio
+
+## Included music
+
+The built-in catalog includes learning arrangements of works by Beethoven, Mozart, Bach, and James Lord Pierpont, plus the traditional French melody commonly known as “Twinkle, Twinkle, Little Star.” The underlying compositions are in the public domain. The simplified note sequences and abstract cover artwork in this repository are original project assets released under the repository license.
 
 ## Run locally
 

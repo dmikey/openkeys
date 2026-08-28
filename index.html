@@ -21,6 +21,8 @@
       </a>
       <div class="lesson-name"><span id="song-title">Ode to Joy</span><small id="song-composer">L. van Beethoven · Beginner</small></div>
       <div class="top-actions">
+        <div class="xp-pill" aria-label="Experience points"><span>XP</span><strong id="xp-total">0</strong></div>
+        <button class="library-button" id="library-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z"/></svg><span>Library</span></button>
         <button class="quiet-button" id="settings-button" type="button" aria-label="Open help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 3.2 2.3c-.8.4-.9.8-.9 1.7M12 16.8h.01"/></svg></button>
         <label class="import-button" for="midi-input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 13v7h14v-7"/></svg><span>Open MIDI</span></label>
         <input id="midi-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
@@ -29,8 +31,8 @@
 
     <main id="coach">
       <aside class="lesson-rail">
-        <div class="rail-heading"><span class="chapter-label">PART 1 OF 1</span><strong>First melody</strong></div>
-        <ol class="phrase-list" aria-label="Lesson phrases">
+        <div class="rail-heading"><span class="chapter-label" id="part-label">PART 1 OF 1</span><strong id="lesson-heading">First melody</strong></div>
+        <ol class="phrase-list" id="phrase-list" aria-label="Lesson phrases">
           <li class="active"><span class="phrase-number">01</span><div><strong>Opening phrase</strong><small>Notes 1–15</small></div><span class="phrase-state" aria-label="In progress"></span></li>
           <li><span class="phrase-number">02</span><div><strong>Answer phrase</strong><small>Notes 16–30</small></div></li>
         </ol>
@@ -70,6 +72,15 @@
     </main>
   </div>
 
+  <dialog id="library-dialog" class="library-dialog">
+    <div class="library-top">
+      <div><span class="dialog-kicker">FREE &amp; OPEN</span><h2>Choose your next song</h2><p>Public-domain music, arranged as note-follow lessons. No account or download required.</p></div>
+      <button class="dialog-close" id="library-close" type="button" aria-label="Close library">×</button>
+    </div>
+    <div class="library-filter" role="group" aria-label="Filter lessons"><button class="active" data-filter="all" type="button">All songs</button><button data-filter="beginner" type="button">Beginner</button><button data-filter="intermediate" type="button">Intermediate</button></div>
+    <div class="lesson-grid" id="lesson-grid"></div>
+    <footer class="library-note"><span>♩</span><p><strong>Truly free lessons.</strong> The underlying compositions are in the public domain. These original learning arrangements and cover designs ship with OpenKeys.</p></footer>
+  </dialog>
   <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your piano is the controller.</h2><p>Place this tablet on your music stand, allow microphone access, and play the highlighted note on your acoustic or digital piano. OpenKeys identifies the pitch and moves the music forward only when you are ready.</p><ul><li>For best results, practice in a quiet room.</li><li>Play one note at a time and let it ring briefly.</li><li>Your audio never leaves this device.</li></ul></dialog>
   <div class="celebration" id="celebration" aria-live="polite"><span>✓</span><strong>That’s it!</strong><small>Moving to the next note</small></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
