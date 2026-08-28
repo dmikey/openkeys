@@ -129,3 +129,6 @@ main{position:relative}.topbar{grid-template-columns:240px 1fr 330px}.library-bu
 
 /* Preview playback states live entirely in the button. */
 #hear-phrase.preview-loading svg{display:none}#hear-phrase.preview-loading::before{content:"";width:15px;height:15px;flex:0 0 15px;border:2px solid #c9ced8;border-top-color:var(--blue);border-radius:50%;animation:preview-spin .7s linear infinite}#hear-phrase.preview-playing{border-color:#b8c6ff;background:var(--blue-soft);color:var(--blue)}#hear-phrase.preview-playing svg{animation:preview-pulse .8s ease-in-out infinite alternate}@keyframes preview-spin{to{transform:rotate(360deg)}}@keyframes preview-pulse{to{transform:scale(1.15)}}
+
+/* The fixed-clock accompaniment game unlocks after learning the lesson. */
+.band-button{color:#7b5b15;background:#fff8e7;border-color:#ead8aa}.band-button:disabled{color:#999;background:#eee;border-color:#ddd;opacity:.68;cursor:not-allowed}.band-button.band-playing{color:white;background:var(--green);border-color:var(--green)}.band-button.band-playing svg{animation:preview-pulse .55s ease-in-out infinite alternate}

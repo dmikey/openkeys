@@ -4,7 +4,7 @@ const $ = selector => document.querySelector(selector);
 const els = {
   title: $("#song-title"), composer: $("#song-composer"), midi: $("#midi-input"), track: $("#notes-track"), counts: $("#count-strip"),
   targetName: $("#target-name"), targetOctave: $("#target-octave"), targetHand: $("#target-hand"), heardNote: $("#heard-note"), heardCents: $("#heard-cents"),
-  pitchIndicator: $("#pitch-indicator"), mic: $("#mic-button"), hearPhrase: $("#hear-phrase"), phraseLabel: $("#phrase-label"), restart: $("#restart-button"),
+  pitchIndicator: $("#pitch-indicator"), mic: $("#mic-button"), hearPhrase: $("#hear-phrase"), phraseLabel: $("#phrase-label"), bandButton: $("#band-button"), bandLabel: $("#band-label"), restart: $("#restart-button"),
   statusTitle: $("#status-title"), statusCopy: $("#status-copy"), followStatus: $(".follow-status"), progressText: $("#progress-text"), progressBar: $("#progress-bar"),
   celebration: $("#celebration"), toast: $("#toast"), help: $("#help-dialog"), settings: $("#settings-button"), dialogClose: $("#dialog-close"),
   library: $("#library-dialog"), libraryButton: $("#library-button"), libraryClose: $("#library-close"), lessonGrid: $("#lesson-grid"), libraryTitle: $("#library-title"), librarySubtitle: $("#library-subtitle"),
@@ -61,6 +61,7 @@ function loadProfileInstrument(id = activeProfileId) { try { return localStorage
 let game = loadProfileGame();
 let currentIndex = 0, audioContext, masterGain, masterLimiter, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0, lastStrumAt = 0, lastStrumLevel = 0, recognitionMutedUntil = 0, pendingChordAt = 0, midiAccess;
 let previewIndex = null, previewFrame = 0, previewing = false, previewPhase = "idle";
+let bandActive = false, bandFrame = 0, bandHits = new Set();
 let setupStream, setupFrame, setupListening = false, setupDetected = false;
 let tunerStringIndex = 0, tunerStableFrames = 0, tunerAdvanceTimer = 0;
 let activeInput = "mic"; const midiPressed = new Set();
@@ -103,8 +104,8 @@ function playTone(midi, when = 0, duration = .55, velocity = .75) {
 }
 
 function harmonyRoot(midi) { const roots = [0,5,7,9], pitch = midi % 12, root = roots.reduce((best,item) => Math.abs(item - pitch) < Math.abs(best - pitch) ? item : best,0); return 48 + root; }
-function playEnsembleCue(note, when = 0) {
-  if (!song.plan?.ensemble) return; const root = note.chordPitches?.[0] || harmonyRoot(note.midi), chord = note.chordPitches || [root,root + (root % 12 === 9 ? 3 : 4),root + 7];
+function playEnsembleCue(note, when = 0, force = false) {
+  if (!force && !song.plan?.ensemble) return; const root = note.chordPitches?.[0] || harmonyRoot(note.midi), chord = note.chordPitches || [root,root + (root % 12 === 9 ? 3 : 4),root + 7];
   if (activeInstrument === "piano") chord.forEach((pitch,index) => playGuitarTone(pitch,when + index * .025,.7,.28));
   else { playPianoTone(root - 12,when,.8,.3); chord.forEach((pitch,index) => playPianoTone(pitch,when + .05 + index * .018,.7,.2)); }
 }
@@ -327,7 +328,7 @@ function render() {
     label.style.setProperty("--x", `${x}%`); label.style.setProperty("--y", staffY(note)); els.track.append(label);
   }
   for (let i = 0; i < 6; i++) { const count = document.createElement("span"); count.textContent = String(viewIndex + i + 1).padStart(2, "0"); els.counts.append(count); }
-  updatePreviewButton();
+  updatePreviewButton(); updateBandButton();
   if (target) { els.targetName.textContent = target.strum ? target.direction : target.pitches?.length > 1 ? "2" : noteName(target.midi); els.targetOctave.textContent = target.strum ? target.chord : target.pitches?.length > 1 ? "notes together" : `Octave ${noteOctave(target.midi)}`; renderPlacement(target,viewIndex); }
   const done = Math.min(currentIndex, total); els.progressText.textContent = `${done} / ${total}`; els.progressBar.style.width = `${total ? done / total * 100 : 0}%`;
   els.xpTotal.textContent = game.xp || 0; renderPhrases();
@@ -342,7 +343,6 @@ function advance() {
     if (currentIndex >= song.notes.length && !record.rewarded) { record.rewarded = true; record.stars = 3; game.xp += song.reward; }
     saveGame(); renderJourney();
   }
-  if (completedNote && song.plan?.ensemble) { playEnsembleCue(completedNote,.05); recognitionMutedUntil = performance.now() + 550; }
   els.celebration.classList.add("show"); clearTimeout(advance.timer); advance.timer = setTimeout(() => els.celebration.classList.remove("show"), 850);
   if (currentIndex >= song.notes.length) { currentIndex = song.notes.length; stopListening(); render(); els.statusTitle.textContent = "Lesson complete"; els.statusCopy.textContent = song.reward ? `Three stars earned · +${song.reward} XP` : "You played every note"; showToast("Beautifully played — lesson complete!"); }
   else { render(); correctFrames = 0; }
@@ -354,7 +354,7 @@ function updateHeard(frequency) {
   const target = song.notes[currentIndex];
   const pitchMatches = Boolean(target && (activeInstrument === "guitar" ? midi % 12 === target.midi % 12 : midi === target.midi)), matches = pitchMatches && Math.abs(cents) <= ACCEPTANCE_CENTS;
   matchHistory.push(matches); if (matchHistory.length > MATCH_WINDOW) matchHistory.shift(); correctFrames = matchHistory.filter(Boolean).length;
-  if (matches) { wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = correctFrames < MATCHES_NEEDED ? activeInstrument === "guitar" && midi !== target.midi ? "Right note — octave accepted" : "Let it ring…" : "Got it!"; if (correctFrames >= MATCHES_NEEDED) advance(); }
+  if (matches) { wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = correctFrames < MATCHES_NEEDED ? activeInstrument === "guitar" && midi !== target.midi ? "Right note — octave accepted" : "Let it ring…" : "Got it!"; if (correctFrames >= MATCHES_NEEDED) { if (bandActive) { recordBandHit(); matchHistory = []; correctFrames = 0; } else advance(); } }
   else { if (target && !pitchMatches) wrongFrames++; if (wrongFrames >= 5 && combo > 0) { combo = 0; els.comboValue.textContent = "×0"; wrongFrames = 0; } els.statusTitle.textContent = `Listening for ${target ? activeInstrument === "guitar" ? noteName(target.midi) : noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = pitchMatches ? "Right note — let the pitch settle" : activeInstrument === "guitar" ? "Try the highlighted string and fret" : "Try the highlighted key and finger"; }
 }
 
@@ -377,11 +377,12 @@ function analyzeChord(buffer,sampleRate,target) {
 
 function registerChordResult(result,target) {
   els.heardNote.textContent = `${Math.round(result.confidence * 100)}%`; els.heardCents.textContent = `${result.matched}/${result.required} core tones`;
-  if (result.pass) { els.statusTitle.textContent = target.strum ? `Yes — ${target.chord}` : expectedPitches(target).length > 1 ? "Yes — both hands" : `Yes — ${noteLabel(target.midi)}`; els.statusCopy.textContent = activeInput === "midi" ? "Exact MIDI match" : "Chord tones recognized"; advance(); }
+  if (result.pass) { els.statusTitle.textContent = target.strum ? `Yes — ${target.chord}` : expectedPitches(target).length > 1 ? "Yes — both hands" : `Yes — ${noteLabel(target.midi)}`; els.statusCopy.textContent = activeInput === "midi" ? "Exact MIDI match" : "Chord tones recognized"; if (bandActive) recordBandHit(); else advance(); }
   else { els.statusTitle.textContent = `Listening for ${target.strum ? target.chord : "both notes"}`; els.statusCopy.textContent = "Let every required tone ring together"; }
 }
 
 function expectedPitches(target) { return target?.pitches || (target ? [target.midi] : []); }
+function recordBandHit() { if (!bandActive || bandHits.has(currentIndex)) return; bandHits.add(currentIndex); combo++; els.comboValue.textContent = `×${combo}`; els.statusTitle.textContent = "On the beat!"; els.statusCopy.textContent = `${bandHits.size} of ${song.notes.length} targets matched`; updateBandButton(); }
 function evaluateMidiTarget() { const target = song.notes[currentIndex]; if (!target) return; const expected = expectedPitches(target), exact = expected.every(pitch => midiPressed.has(pitch)); els.heardNote.textContent = [...midiPressed].sort((a,b) => a-b).map(noteLabel).join("+") || "—"; els.heardCents.textContent = `${midiPressed.size} MIDI note${midiPressed.size === 1 ? "" : "s"}`; if (exact) registerChordResult({confidence:1,matched:expected.length,required:expected.length,pass:true},target); else { els.statusTitle.textContent = `MIDI: ${expected.map(noteLabel).join(" + ")}`; els.statusCopy.textContent = "Hold the highlighted notes together"; } }
 function handleMidiMessage(event) { const [status,note,velocity = 0] = event.data, command = status & 240; if (command === 144 && velocity > 0) { midiPressed.add(note); evaluateMidiTarget(); } else if (command === 128 || (command === 144 && velocity === 0)) midiPressed.delete(note); }
 async function connectMidi() { if (!navigator.requestMIDIAccess) { showToast("Web MIDI is not available here. Use the device microphone or a supported desktop browser."); setInputMode("mic"); return; } try { midiAccess ||= await navigator.requestMIDIAccess(); for (const input of midiAccess.inputs.values()) input.onmidimessage = handleMidiMessage; midiAccess.onstatechange = () => { for (const input of midiAccess.inputs.values()) input.onmidimessage = handleMidiMessage; els.inputStatus.textContent = midiAccess.inputs.size ? "MIDI keyboard connected" : "Waiting for a MIDI keyboard"; }; els.inputStatus.textContent = midiAccess.inputs.size ? "MIDI keyboard connected" : "Waiting for a MIDI keyboard"; els.statusTitle.textContent = midiAccess.inputs.size ? "MIDI ready" : "Waiting for MIDI keyboard"; els.statusCopy.textContent = "Play the highlighted notes together"; } catch (_) { showToast("MIDI permission was not granted."); setInputMode("mic"); } }
@@ -423,7 +424,9 @@ function completeSetup() { if (!setupDetected && !journeyProgress().setupComplet
 
 function playTarget(note,when,duration) { if (note.strum) note.chordPitches.forEach((pitch,index) => playGuitarTone(pitch,when + index * .025,duration,note.velocity)); else if (note.pitches?.length > 1) note.pitches.forEach((pitch,index) => playPianoTone(pitch,when + index * .012,duration,note.velocity)); else playTone(note.midi,when,duration,note.velocity); }
 function audibleAudioTime() { if (typeof audioContext.getOutputTimestamp === "function") { const timestamp = audioContext.getOutputTimestamp(); return timestamp?.contextTime > 0 ? timestamp.contextTime : null; } const deviceLatency = (audioContext.baseLatency || 0) + (audioContext.outputLatency || 0); return audioContext.currentTime - Math.max(.12,Math.min(.4,deviceLatency)); }
-function updatePreviewButton() { els.hearPhrase.disabled = previewing; els.hearPhrase.classList.toggle("preview-loading",previewPhase === "loading"); els.hearPhrase.classList.toggle("preview-playing",previewPhase === "playing"); els.phraseLabel.textContent = previewPhase === "loading" ? "Loading preview…" : previewPhase === "playing" ? "Playing…" : "Preview song"; }
+function bandUnlocked() { return Boolean(song.plan && planComplete(song.plan)); }
+function updatePreviewButton() { els.hearPhrase.disabled = previewing || bandActive; els.hearPhrase.classList.toggle("preview-loading",previewPhase === "loading"); els.hearPhrase.classList.toggle("preview-playing",previewPhase === "playing"); els.phraseLabel.textContent = previewPhase === "loading" ? "Loading preview…" : previewPhase === "playing" ? "Playing…" : "Preview song"; }
+function updateBandButton() { const unlocked = bandUnlocked(); els.bandButton.disabled = !unlocked || previewing || bandActive; els.restart.disabled = bandActive; els.bandButton.classList.toggle("band-playing",bandActive); els.bandLabel.textContent = bandActive ? `Playing · ${bandHits.size}/${song.notes.length}` : unlocked ? "Play with band" : "Learn to unlock"; els.bandButton.title = unlocked ? "Play the learned song with fixed-clock accompaniment" : "Complete this lesson to unlock"; }
 function playPhrase() {
   if (previewing) return;
   if (listening) stopListening();
@@ -441,6 +444,18 @@ function playPhrase() {
     else { previewIndex = null; previewing = false; previewPhase = "idle"; previewFrame = 0; render(); els.statusTitle.textContent = "Your turn"; els.statusCopy.textContent = "Play the highlighted note when you’re ready"; }
   };
   previewFrame = requestAnimationFrame(animate);
+}
+
+async function startBandGame() {
+  if (!bandUnlocked()) { showToast("Complete this lesson to unlock Play with the band."); return; }
+  if (bandActive || previewing) return; if (listening) stopListening(); currentIndex = 0; combo = 0; bandHits.clear(); matchHistory = []; correctFrames = 0; els.comboValue.textContent = "×0";
+  if (activeInput === "mic") { await startListening(); if (!listening) return; } else await connectMidi();
+  initAudio(); bandActive = true; render(); const bandSong = song, notes = song.notes, baseNoteTime = notes[0]?.start || 0, offsets = notes.map((note,index) => Number.isFinite(note.start) ? Math.max(0,note.start - baseNoteTime) : index * .5), leadIn = .65, audioStartedAt = audioContext.currentTime + leadIn;
+  els.statusTitle.textContent = "Band is counting in"; els.statusCopy.textContent = "Come in when the marker reaches Play now";
+  notes.forEach((note,index) => { if (index % 4 !== 0) return; const when = Math.max(0,audioStartedAt - audioContext.currentTime + offsets[index]); playEnsembleCue(note,when,true); });
+  const lastDuration = Math.max(.25,Math.min(.9,notes.at(-1)?.duration || .5)), totalDuration = offsets.at(-1) + lastDuration + .2; let lastElapsed = 0;
+  const animateBand = () => { if (!bandActive || song !== bandSong) { previewIndex = null; cancelAnimationFrame(bandFrame); return; } const outputTime = audibleAudioTime(), measuredElapsed = outputTime === null ? 0 : Math.max(0,outputTime - audioStartedAt), elapsed = Math.max(lastElapsed,measuredElapsed); lastElapsed = elapsed; let beat = 0; while (beat < offsets.length - 1 && elapsed >= offsets[beat + 1]) beat++; const nextGap = beat < offsets.length - 1 ? Math.max(.001,offsets[beat + 1] - offsets[beat]) : 1, fraction = beat < offsets.length - 1 ? Math.max(0,Math.min(1,(elapsed - offsets[beat]) / nextGap)) : 0; previewIndex = beat + fraction; if (beat !== currentIndex) { currentIndex = beat; matchHistory = []; correctFrames = 0; } render(); if (elapsed < totalDuration) bandFrame = requestAnimationFrame(animateBand); else { bandActive = false; bandFrame = 0; previewIndex = null; currentIndex = notes.length; const score = Math.round(bandHits.size / notes.length * 100); if (listening) stopListening(); render(); els.statusTitle.textContent = `Band score · ${score}%`; els.statusCopy.textContent = `${bandHits.size} of ${notes.length} notes or chords matched`; showToast(score >= 80 ? "Great performance with the band!" : "Nice run — try again and build the groove."); } };
+  bandFrame = requestAnimationFrame(animateBand);
 }
 function readVarInt(view, state) { let value = 0, byte; do { byte = view.getUint8(state.offset++); value = (value << 7) | (byte & 127); } while (byte & 128); return value; }
 
@@ -465,6 +480,7 @@ function parseMidi(buffer) {
 }
 
 els.mic.addEventListener("click", startListening); els.hearPhrase.addEventListener("click", playPhrase);
+els.bandButton.addEventListener("click",startBandGame);
 els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; matchHistory = []; els.comboValue.textContent = "×0"; render(); const first = song.notes[0]; els.statusTitle.textContent = listening ? first.strum ? `Listening for ${first.direction} ${first.chord}` : `Listening for ${noteLabel(first.midi)}` : first.strum ? "Ready to strum" : "Ready to listen"; els.statusCopy.textContent = listening ? first.strum ? "Strum the highlighted chord" : "Play the highlighted note" : "Turn on your microphone to begin"; });
 els.settings.addEventListener("click", () => els.help.showModal()); els.dialogClose.addEventListener("click", () => els.help.close()); els.help.addEventListener("click", event => { if (event.target === els.help) els.help.close(); });
 els.libraryButton.addEventListener("click", () => { renderLibrary(); els.library.showModal(); }); els.libraryClose.addEventListener("click", () => els.library.close());
