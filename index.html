@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260828-10" />
+  <link rel="stylesheet" href="styles.css?v=20260828-22" />
 </head>
 <body>
   <a class="skip-link" href="#coach">Skip to lesson</a>
@@ -24,15 +24,18 @@
     <header class="topbar">
       <a class="brand" href="#" aria-label="OpenKeys home">
         <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M7 21.5 20 8l13 13.5L20 35 7 21.5Z"/><circle cx="20" cy="21.5" r="5"/></svg>
-        <span>OPENKEYS</span>
+        <span class="brand-word" aria-label="OpenKeys"><i aria-hidden="true">O</i><i aria-hidden="true">P</i><i aria-hidden="true">E</i><i aria-hidden="true">N</i><i aria-hidden="true">K</i><i aria-hidden="true">E</i><i aria-hidden="true">Y</i><i aria-hidden="true">S</i></span>
       </a>
       <div class="lesson-name"><span id="song-title">Ode to Joy</span><small id="song-composer">L. van Beethoven · Beginner</small></div>
       <div class="top-actions">
-        <button class="journey-button" id="journey-button" type="button" aria-label="Open instrument journey"><span id="journey-icon">♬</span><span><small>MY JOURNEY</small><strong id="journey-name">Piano</strong></span></button>
-        <div class="xp-pill" aria-label="Experience points"><span>XP</span><strong id="xp-total">0</strong></div>
-        <button class="library-button" id="library-button" type="button" aria-label="Open song library"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z"/></svg><span>Library</span></button>
-        <button class="quiet-button" id="settings-button" type="button" aria-label="Open help"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.4 2.4 0 1 1 3.2 2.3c-.8.4-.9.8-.9 1.7M12 16.8h.01"/></svg></button>
-        <label class="import-button" for="midi-input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 13v7h14v-7"/></svg><span>Open MIDI</span></label>
+        <div class="library-chip" aria-label="Song library and MIDI import">
+          <button class="library-button" id="library-button" type="button" aria-label="Browse song library"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16ZM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z"/></svg><span>Browse</span></button>
+          <label class="library-import" for="midi-input" aria-label="Import a MIDI file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg><span>Import</span></label>
+        </div>
+        <div class="identity-chip" aria-label="Player and instrument journey">
+          <button class="profile-button" id="profile-button" type="button" aria-label="Switch family profile"><span id="profile-avatar">P1</span><span><small>PLAYER</small><strong id="profile-name">Player 1</strong></span></button>
+          <button class="journey-button" id="journey-button" type="button" aria-label="Open instrument journey"><span id="journey-icon">🎹</span><span><small>JOURNEY</small><strong id="journey-name">Piano</strong></span><b aria-hidden="true">⌄</b></button>
+        </div>
         <input id="midi-input" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" />
       </div>
     </header>
@@ -47,6 +50,7 @@
         <button class="rail-journey" id="rail-journey" type="button"><span id="rail-badge">01</span><div><small>NEXT MILESTONE</small><strong id="rail-milestone">Play your first note</strong><i><b id="milestone-progress"></b></i></div></button>
         <div class="lesson-progress"><div><span>LESSON PROGRESS</span><strong id="progress-text">0 / 30</strong></div><div class="progress-track"><i id="progress-bar"></i></div></div>
       </aside>
+      <button class="rail-help" id="settings-button" type="button"><span>?</span> Help &amp; Setup</button>
 
       <section class="practice-space">
         <div class="practice-header">
@@ -60,8 +64,9 @@
         <div class="score-window" aria-label="Current and upcoming notes">
           <div class="count-strip" id="count-strip" aria-hidden="true"></div>
           <div class="staff" id="staff">
-            <div class="staff-lines" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="staff-lines treble-staff" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div class="staff-lines bass-staff" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
             <div class="clef" aria-hidden="true">𝄞</div>
+            <div class="bass-clef" aria-hidden="true">𝄢</div>
             <div class="notes-track" id="notes-track"></div>
             <div class="focus-column" aria-hidden="true"><span></span></div>
           </div>
@@ -78,6 +83,7 @@
             <div class="heard-compact"><span>MIC HEARS</span><strong id="heard-note">—</strong><small id="heard-cents">Play a note</small><div class="pitch-meter" aria-label="Pitch accuracy"><span>-50</span><div class="meter-line"><i id="pitch-indicator"></i><b></b></div><span>+50</span></div></div>
           </div>
           <div class="mic-action">
+            <div class="input-source" role="group" aria-label="Recognition input"><button class="active" data-input="mic" type="button">Microphone</button><button data-input="midi" type="button">MIDI keyboard</button><span id="input-status">ACOUSTIC MODE</span></div>
             <div class="combo-card"><span>COMBO</span><strong id="combo-value">×0</strong><small>Correct notes in a row</small></div>
             <button id="mic-button" class="listen-button" type="button"><span class="button-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4Zm-7-4a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></span><span><strong>Start listening</strong><small>Uses your device microphone</small></span></button>
             <button id="reference-button" class="reference-button" type="button">Play reference E4</button>
@@ -98,17 +104,24 @@
   </dialog>
   <dialog id="journey-dialog" class="journey-dialog">
     <button class="dialog-close" id="journey-close" type="button" aria-label="Close journey">×</button>
-    <span class="dialog-kicker">YOUR MUSIC PATH</span><h2>Choose a journey. Build real skill.</h2><p class="journey-intro">Every completed play-along adds notes, songs, stars, and achievements to that instrument.</p>
+    <span class="dialog-kicker">YOUR MUSIC PATH</span><h2>Choose a journey. Build real skill.</h2><p class="journey-intro">Every completed play-along adds notes, songs, stars, and achievements to that instrument. <span class="journey-xp">XP <strong id="xp-total">0</strong></span></p>
     <div class="journey-choices" role="group" aria-label="Instrument journeys">
       <button data-instrument="piano" type="button"><span class="journey-glyph">♩</span><span><small>PIANO PATH</small><strong>Keys Explorer</strong><em id="piano-journey-stat">0 songs mastered</em></span><b>Continue →</b></button>
       <button data-instrument="guitar" type="button"><span class="journey-glyph">♬</span><span><small>GUITAR PATH</small><strong>Fretboard Explorer</strong><em id="guitar-journey-stat">0 songs mastered</em></span><b>Continue →</b></button>
     </div>
+    <div class="plan-heading"><div><small>GUIDED LESSON PLAN</small><strong id="plan-title">Piano foundations</strong></div><span>Short wins → full musicianship</span></div>
+    <div class="plan-grid" id="plan-grid"></div>
     <div class="achievement-heading"><div><small>ACHIEVEMENTS</small><strong id="achievement-title">Piano journey</strong></div><span id="journey-total-notes">0 notes played</span></div>
     <div class="achievement-grid" id="achievement-grid"></div>
   </dialog>
-  <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your instrument is the controller.</h2><p>Choose piano or guitar, place this device where you can see it, allow microphone access, and play the highlighted note. OpenKeys identifies the pitch and moves the music forward only when you are ready.</p><ul><li>Flexible recognition allows for natural tuning and microphone variation.</li><li>For best results, play one note at a time and let it ring briefly.</li><li>Your audio never leaves this device.</li></ul></dialog>
+  <dialog id="profiles-dialog" class="profiles-dialog">
+    <button class="dialog-close" id="profiles-close" type="button" aria-label="Close profiles">×</button><span class="dialog-kicker">FAMILY PROFILES</span><h2>Who is playing?</h2><p>Each player keeps their own journeys, achievements, XP, and instrument choice on this device.</p>
+    <div class="profiles-grid" id="profiles-grid"></div>
+    <form id="profile-form" class="profile-form"><label for="profile-name-input">Add a family member</label><div><input id="profile-name-input" maxlength="24" autocomplete="off" placeholder="Player name" required /><button type="submit">Add profile</button></div></form>
+  </dialog>
+  <dialog id="help-dialog"><button class="dialog-close" id="dialog-close" type="button" aria-label="Close help">×</button><span class="dialog-kicker">HOW IT WORKS</span><h2>Your instrument is the controller.</h2><p>Begin with a short guided excerpt, then unlock ensemble, coordination, and rhythm lessons. OpenKeys listens to your real instrument and lets the accompaniment answer what you play.</p><ul><li>Piano progresses from right-hand melody to a two-staff, two-hand guide.</li><li>Guitar progresses from single notes to chord shapes and detected down/up strums.</li><li>Flexible recognition allows for natural tuning and microphone variation.</li><li>Your audio never leaves this device.</li></ul></dialog>
   <div class="celebration" id="celebration" aria-live="polite"><span>✓</span><strong>That’s it!</strong><small>Moving to the next note</small></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260828-11"></script>
+  <script src="app.js?v=20260828-15"></script>
 </body>
 </html>
