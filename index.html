@@ -62,8 +62,14 @@
 
         <div class="coach-panel">
           <div class="target-note" aria-live="polite"><span class="target-kicker">YOUR NOTE</span><strong id="target-name">E</strong><div><span id="target-octave">Octave 4</span><i></i><span id="target-hand">Right hand</span></div></div>
-          <div class="pitch-center"><span class="heard-label">MICROPHONE</span><div class="heard-note"><span id="heard-note">—</span><small id="heard-cents">Play a note</small></div><div class="pitch-meter" aria-label="Pitch accuracy"><span>-50</span><div class="meter-line"><i id="pitch-indicator"></i><b></b></div><span>+50</span></div></div>
+          <div class="placement-center">
+            <div class="placement-heading"><span class="heard-label">FIND THIS KEY</span><span id="position-hint">Two white keys right of Middle C</span></div>
+            <div class="hand-guide" aria-label="Recommended fingering"><div class="finger-dots" id="finger-dots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i></div><div class="finger-copy"><strong id="hand-name">Right hand</strong><span>Finger <b id="finger-number">3</b> · <span id="finger-name">Middle</span></span></div></div>
+            <div class="physical-keyboard" id="physical-keyboard" aria-label="Physical keyboard placement guide"></div>
+            <div class="heard-compact"><span>MIC HEARS</span><strong id="heard-note">—</strong><small id="heard-cents">Play a note</small><div class="pitch-meter" aria-label="Pitch accuracy"><span>-50</span><div class="meter-line"><i id="pitch-indicator"></i><b></b></div><span>+50</span></div></div>
+          </div>
           <div class="mic-action">
+            <div class="combo-card"><span>COMBO</span><strong id="combo-value">×0</strong><small>Correct notes in a row</small></div>
             <button id="mic-button" class="listen-button" type="button"><span class="button-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 0 0-8 0v5a4 4 0 0 0 4 4Zm-7-4a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg></span><span><strong>Start listening</strong><small>Uses your device microphone</small></span></button>
             <button id="reference-button" class="reference-button" type="button">Play reference E4</button>
           </div>

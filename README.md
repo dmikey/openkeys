@@ -7,8 +7,11 @@ OpenKeys is a free, tablet-first piano coach that turns standard MIDI files into
 - Import `.mid` and `.midi` files directly in the browser
 - Browse six included lessons based on public-domain compositions
 - Original code-generated cover art, difficulty filters, XP, stars, and saved progress
+- Correct-note combos that reward consistent playing
 - Follow mode that waits until the player performs the correct note
 - Focused staff view with the current note and upcoming phrase
+- Non-playable physical keyboard map showing the target relative to Middle C and black-key groups
+- Curated five-finger guidance for beginner lessons, with contextual fingering for imported MIDI
 - Live note-name, octave, and pitch-accuracy feedback
 - Reference-note and phrase playback using Web Audio
 - Microphone pitch detection for acoustic or digital pianos
@@ -37,7 +40,7 @@ Recent versions of Chrome, Edge, Firefox, and Safari are supported. The layout i
 
 - Optional Web MIDI hardware input
 - Polyphonic microphone recognition
-- Fingering and sheet-music views
+- Expanded editor-reviewed fingering for every arrangement
 - Lesson bookmarks stored locally
 - Community curriculum and public-domain MIDI library
 

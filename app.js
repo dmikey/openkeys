@@ -8,23 +8,25 @@ const els = {
   statusTitle: $("#status-title"), statusCopy: $("#status-copy"), followStatus: $(".follow-status"), progressText: $("#progress-text"), progressBar: $("#progress-bar"),
   celebration: $("#celebration"), toast: $("#toast"), help: $("#help-dialog"), settings: $("#settings-button"), dialogClose: $("#dialog-close"),
   library: $("#library-dialog"), libraryButton: $("#library-button"), libraryClose: $("#library-close"), lessonGrid: $("#lesson-grid"),
-  phraseList: $("#phrase-list"), lessonHeading: $("#lesson-heading"), partLabel: $("#part-label"), xpTotal: $("#xp-total")
+  phraseList: $("#phrase-list"), lessonHeading: $("#lesson-heading"), partLabel: $("#part-label"), xpTotal: $("#xp-total"),
+  physicalKeyboard: $("#physical-keyboard"), positionHint: $("#position-hint"), handName: $("#hand-name"), fingerNumber: $("#finger-number"),
+  fingerName: $("#finger-name"), fingerDots: $("#finger-dots"), comboValue: $("#combo-value")
 };
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 const makeNotes = (pitches, beat = .5) => pitches.map((midi, i) => ({ midi, start: i * beat, duration: beat * .88, velocity: .75 }));
 const LESSONS = [
-  { id:"ode", name:"Ode to Joy", composer:"L. van Beethoven", level:"Beginner", reward:150, cover:"joy", glyph:"♪", pitches:[64,64,65,67,67,65,64,62,60,60,62,64,64,62,62,64,64,65,67,67,65,64,62,60,60,62,64,62,60,60] },
-  { id:"twinkle", name:"Twinkle, Twinkle", composer:"Traditional French melody", level:"Beginner", reward:120, cover:"twinkle", glyph:"✦", pitches:[60,60,67,67,69,69,67,65,65,64,64,62,62,60,67,67,65,65,64,64,62,67,67,65,65,64,64,62,60,60,67,67,69,69,67,65,65,64,64,62,62,60] },
+  { id:"ode", name:"Ode to Joy", composer:"L. van Beethoven", level:"Beginner", reward:150, cover:"joy", glyph:"♪", fingers:[3,3,4,5,5,4,3,2,1,1,2,3,3,2,2,3,3,4,5,5,4,3,2,1,1,2,3,2,1,1], pitches:[64,64,65,67,67,65,64,62,60,60,62,64,64,62,62,64,64,65,67,67,65,64,62,60,60,62,64,62,60,60] },
+  { id:"twinkle", name:"Twinkle, Twinkle", composer:"Traditional French melody", level:"Beginner", reward:120, cover:"twinkle", glyph:"✦", fingers:[1,1,4,4,5,5,4,3,3,2,2,1,1,1,4,4,3,3,2,2,1,4,4,3,3,2,2,1,1,1,4,4,5,5,4,3,3,2,2,1,1,1], pitches:[60,60,67,67,69,69,67,65,65,64,64,62,62,60,67,67,65,65,64,64,62,67,67,65,65,64,64,62,60,60,67,67,69,69,67,65,65,64,64,62,62,60] },
   { id:"jingle", name:"Jingle Bells", composer:"James Lord Pierpont", level:"Beginner", reward:140, cover:"bells", glyph:"♬", pitches:[64,64,64,64,64,64,64,67,60,62,64,65,65,65,65,65,64,64,64,64,62,62,64,62,67,64,64,64,64,64,64,64,67,60,62,64] },
-  { id:"fur", name:"Für Elise", composer:"L. van Beethoven", level:"Intermediate", reward:250, cover:"fur", glyph:"E", pitches:[76,75,76,75,76,71,74,72,69,60,64,69,71,64,68,71,72,64,76,75,76,75,76,71,74,72,69,60,64,69,71,64,72,71,69] },
+  { id:"fur", name:"Für Elise", composer:"L. van Beethoven", level:"Intermediate", reward:250, cover:"fur", glyph:"E", fingers:[5,4,5,4,5,3,4,2,1,1,2,4,5,1,3,5,1,2,5,4,5,4,5,3,4,2,1,1,2,4,5,1,2,1,1], pitches:[76,75,76,75,76,71,74,72,69,60,64,69,71,64,68,71,72,64,76,75,76,75,76,71,74,72,69,60,64,69,71,64,72,71,69] },
   { id:"mozart", name:"Eine kleine Nachtmusik", composer:"W. A. Mozart", level:"Intermediate", reward:280, cover:"mozart", glyph:"M", pitches:[67,74,67,74,67,74,67,71,74,71,74,71,67,71,67,71,67,66,64,66,64,62,64,62,59,62,67,66,64,66,67,71,74] },
   { id:"bach", name:"Prelude in C Major", composer:"J. S. Bach", level:"Intermediate", reward:300, cover:"bach", glyph:"B", pitches:[60,64,67,72,76,67,72,76,60,62,69,74,77,69,74,77,59,62,67,74,77,67,74,77,60,64,67,72,76,67,72,76] }
 ].map(lesson => ({...lesson, notes:makeNotes(lesson.pitches)}));
 let song = LESSONS[0];
 let game = (() => { try { return JSON.parse(localStorage.getItem("openkeys-progress")) || {xp:0, lessons:{}}; } catch (_) { return {xp:0, lessons:{}}; } })();
-let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, lastAnalysis = 0;
+let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, lastAnalysis = 0;
 
 function noteName(midi) { return NOTE_NAMES[((midi % 12) + 12) % 12]; }
 function noteOctave(midi) { return Math.floor(midi / 12) - 1; }
@@ -79,8 +81,39 @@ function renderLibrary(filter = "all") {
 
 function selectLesson(id) {
   const lesson = LESSONS.find(item => item.id === id); if (!lesson) return;
-  stopListening(); song = lesson; currentIndex = 0; correctFrames = 0; els.title.textContent = lesson.name; els.composer.textContent = `${lesson.composer} · ${lesson.level}`;
+  stopListening(); song = lesson; currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; els.comboValue.textContent = "×0"; els.title.textContent = lesson.name; els.composer.textContent = `${lesson.composer} · ${lesson.level}`;
   els.statusTitle.textContent = "Ready to listen"; els.statusCopy.textContent = "Turn on your microphone to begin"; render(); els.library.close(); showToast(`${lesson.name} is ready to learn`);
+}
+
+function suggestedFinger(midi, index) {
+  if (song.fingers?.[index]) return song.fingers[index];
+  const right = midi >= 60, pitch = midi % 12;
+  const rightMap = {0:1,1:2,2:2,3:3,4:3,5:4,6:4,7:5,8:3,9:4,10:4,11:5};
+  const leftMap = {0:5,1:4,2:4,3:3,4:3,5:2,6:2,7:1,8:3,9:2,10:2,11:1};
+  return (right ? rightMap : leftMap)[pitch] || 3;
+}
+
+function positionHint(midi) {
+  if (midi === 60) return "This is Middle C";
+  if ([1,3,6,8,10].includes(midi % 12)) {
+    const lower = noteName(midi - 1).replace("♯", ""), upper = noteName(midi + 1).replace("♯", "");
+    return `Black key between ${lower} and ${upper}`;
+  }
+  const degrees = {0:0,2:1,4:2,5:3,7:4,9:5,11:6}, whiteIndex = note => noteOctave(note) * 7 + degrees[note % 12];
+  const distance = whiteIndex(midi) - whiteIndex(60), side = distance > 0 ? "right" : "left", amount = Math.abs(distance);
+  return `${amount === 1 ? "One" : amount} white key${amount === 1 ? "" : "s"} ${side} of Middle C`;
+}
+
+function renderPlacement(target) {
+  const midi = target.midi, finger = suggestedFinger(midi, currentIndex), right = midi >= 60, fingerNames = ["Thumb","Index","Middle","Ring","Pinky"];
+  els.positionHint.textContent = positionHint(midi); els.handName.textContent = right ? "Right hand" : "Left hand"; els.fingerNumber.textContent = finger; els.fingerName.textContent = fingerNames[finger - 1];
+  [...els.fingerDots.children].forEach((dot, index) => dot.classList.toggle("active", index + 1 === finger));
+  els.physicalKeyboard.innerHTML = ""; const min = midi < 60 ? 48 : midi > 83 ? 72 : 60, max = min + 23, whites = [];
+  for (let note = min; note <= max; note++) if (![1,3,6,8,10].includes(note % 12)) whites.push(note);
+  whites.forEach(note => { const key = document.createElement("i"); key.className = `guide-key white${note === midi ? " target" : ""}${note === 60 ? " middle-c" : ""}`; key.dataset.note = noteLabel(note); if (note === midi) key.dataset.finger = finger; els.physicalKeyboard.append(key); });
+  whites.forEach((note, index) => {
+    if (note < max && [0,2,5,7,9].includes(note % 12)) { const blackMidi = note + 1, key = document.createElement("i"); key.className = `guide-key black${blackMidi === midi ? " target" : ""}`; key.style.left = `${(index + 1) / whites.length * 100}%`; key.dataset.note = noteLabel(blackMidi); if (blackMidi === midi) key.dataset.finger = finger; els.physicalKeyboard.append(key); }
+  });
 }
 
 function render() {
@@ -96,13 +129,13 @@ function render() {
     label.style.setProperty("--x", `${x}%`); label.style.setProperty("--y", staffY(note.midi)); els.track.append(label);
   }
   for (let i = 0; i < 6; i++) { const count = document.createElement("span"); count.textContent = String(currentIndex + i + 1).padStart(2, "0"); els.counts.append(count); }
-  if (target) { els.targetName.textContent = noteName(target.midi); els.targetOctave.textContent = `Octave ${noteOctave(target.midi)}`; els.targetHand.textContent = target.midi < 60 ? "Left hand" : "Right hand"; els.reference.textContent = `Play reference ${noteLabel(target.midi)}`; }
+  if (target) { els.targetName.textContent = noteName(target.midi); els.targetOctave.textContent = `Octave ${noteOctave(target.midi)}`; els.targetHand.textContent = target.midi < 60 ? "Left hand" : "Right hand"; els.reference.textContent = `Play reference ${noteLabel(target.midi)}`; renderPlacement(target); }
   const done = Math.min(currentIndex, total); els.progressText.textContent = `${done} / ${total}`; els.progressBar.style.width = `${total ? done / total * 100 : 0}%`;
   els.xpTotal.textContent = game.xp || 0; renderPhrases();
 }
 
 function advance() {
-  currentIndex++;
+  currentIndex++; combo++; wrongFrames = 0; els.comboValue.textContent = `×${combo}`; els.comboValue.classList.remove("xp-pop"); requestAnimationFrame(() => els.comboValue.classList.add("xp-pop"));
   if (song.id) {
     const record = game.lessons[song.id] ||= {best:0, stars:0, rewarded:false};
     if (currentIndex > record.best) { record.best = currentIndex; game.xp += 5; }
@@ -118,8 +151,8 @@ function updateHeard(frequency) {
   const exactMidi = 69 + 12 * Math.log2(frequency / 440), midi = Math.round(exactMidi), cents = Math.round((exactMidi - midi) * 100);
   els.heardNote.textContent = noteLabel(midi); els.heardCents.textContent = `${cents > 0 ? "+" : ""}${cents} cents`; els.pitchIndicator.style.left = `${Math.max(2, Math.min(98, 50 + cents))}%`;
   const target = song.notes[currentIndex];
-  if (target && midi === target.midi && Math.abs(cents) < 38) { correctFrames++; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = "Hold it just a moment…"; if (correctFrames >= 3) advance(); }
-  else { correctFrames = 0; els.statusTitle.textContent = `Listening for ${target ? noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = midi === target?.midi ? "Very close — let the note ring" : "Try the highlighted note"; }
+  if (target && midi === target.midi && Math.abs(cents) < 38) { correctFrames++; wrongFrames = 0; els.statusTitle.textContent = `Yes — ${noteLabel(midi)}`; els.statusCopy.textContent = "Hold it just a moment…"; if (correctFrames >= 3) advance(); }
+  else { correctFrames = 0; if (target && midi !== target.midi) wrongFrames++; if (wrongFrames >= 4 && combo > 0) { combo = 0; els.comboValue.textContent = "×0"; wrongFrames = 0; } els.statusTitle.textContent = `Listening for ${target ? noteLabel(target.midi) : "your note"}`; els.statusCopy.textContent = midi === target?.midi ? "Very close — let the note ring" : "Try the highlighted key and finger"; }
 }
 
 function autoCorrelate(buffer, sampleRate) {
@@ -172,12 +205,12 @@ function parseMidi(buffer) {
 }
 
 els.mic.addEventListener("click", startListening); els.reference.addEventListener("click", () => song.notes[currentIndex] && playTone(song.notes[currentIndex].midi)); els.hearPhrase.addEventListener("click", playPhrase);
-els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 0; render(); els.statusTitle.textContent = listening ? `Listening for ${noteLabel(song.notes[0].midi)}` : "Ready to listen"; els.statusCopy.textContent = listening ? "Play the highlighted note" : "Turn on your microphone to begin"; });
+els.restart.addEventListener("click", () => { currentIndex = 0; correctFrames = 0; wrongFrames = 0; combo = 0; els.comboValue.textContent = "×0"; render(); els.statusTitle.textContent = listening ? `Listening for ${noteLabel(song.notes[0].midi)}` : "Ready to listen"; els.statusCopy.textContent = listening ? "Play the highlighted note" : "Turn on your microphone to begin"; });
 els.settings.addEventListener("click", () => els.help.showModal()); els.dialogClose.addEventListener("click", () => els.help.close()); els.help.addEventListener("click", event => { if (event.target === els.help) els.help.close(); });
 els.libraryButton.addEventListener("click", () => { renderLibrary(); els.library.showModal(); }); els.libraryClose.addEventListener("click", () => els.library.close());
 els.library.addEventListener("click", event => { if (event.target === els.library) els.library.close(); });
 document.querySelectorAll(".library-filter button").forEach(button => button.addEventListener("click", () => { document.querySelectorAll(".library-filter button").forEach(item => item.classList.toggle("active", item === button)); renderLibrary(button.dataset.filter); }));
-els.midi.addEventListener("change", async event => { const file = event.target.files[0]; if (!file) return; try { stopListening(); song = parseMidi(await file.arrayBuffer()); currentIndex = 0; els.title.textContent = song.name; els.composer.textContent = `${file.name} · ${song.notes.length} notes`; render(); showToast(`Ready — ${song.notes.length} notes loaded locally`); } catch (error) { showToast(error.message); } event.target.value = ""; });
+els.midi.addEventListener("change", async event => { const file = event.target.files[0]; if (!file) return; try { stopListening(); song = parseMidi(await file.arrayBuffer()); currentIndex = 0; combo = 0; els.comboValue.textContent = "×0"; els.title.textContent = song.name; els.composer.textContent = `${file.name} · ${song.notes.length} notes`; render(); showToast(`Ready — ${song.notes.length} notes loaded locally`); } catch (error) { showToast(error.message); } event.target.value = ""; });
 function showToast(message) { els.toast.textContent = message; els.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 3000); }
 document.addEventListener("visibilitychange", () => { if (document.hidden && listening) stopListening(); });
 renderLibrary(); render();
