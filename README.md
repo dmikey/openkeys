@@ -2,6 +2,8 @@
 
 OpenKeys is a free, tablet-first piano coach that turns standard MIDI files into interactive lessons. It listens to a real acoustic or digital piano through the device microphone and advances at the player’s pace. It is dependency-free, privacy-friendly, and deployable to any static host.
 
+[**Try OpenKeys in your browser →**](https://dmikey.github.io/openkeys/)
+
 ![OpenKeys tablet piano lesson with physical key and fingering guidance](screenshot.png)
 
 ## Features
