@@ -123,3 +123,6 @@ main{position:relative}.topbar{grid-template-columns:240px 1fr 330px}.library-bu
 /* Compact project and support details in Help & Setup. */
 .help-about{margin-top:22px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:16px}.help-about small,.help-about strong{display:block}.help-about small{color:var(--muted);font:500 .42rem/1 "DM Mono",monospace;letter-spacing:.12em}.help-about strong{margin-top:5px;font-size:.62rem}.help-links{display:flex;gap:7px}.help-links a{padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--blue);text-decoration:none;font-size:.55rem;font-weight:700}.help-links a:hover{background:var(--blue-soft)}
 @media(max-width:480px){.help-dialog{padding:28px 22px}.help-about{align-items:flex-start;flex-direction:column}.help-links{width:100%}.help-links a{flex:1;text-align:center}}
+
+/* Open strings sit before the nut; numbered cells now map directly to fret numbers. */
+.guitar-string{grid-template-columns:10px 32px repeat(24,1fr)}.guitar-string i.open-position{border-left:0;border-right:3px solid rgba(50,34,20,.72);background:rgba(255,248,232,.55)}.guitar-string i.target.open-position::after{width:30px;height:17px;border-radius:6px;font-size:.34rem;box-shadow:0 0 0 2px rgba(255,255,255,.62)}

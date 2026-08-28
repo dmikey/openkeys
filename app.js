@@ -294,7 +294,7 @@ function renderGuitarPlacement(target) {
   GUITAR_STRINGS.forEach((string, index) => {
     const row = document.createElement("div"); row.className = `guitar-string${index === position.index ? " target" : ""}`;
     row.dataset.string = string.name;
-    for (let fret = 0; fret <= 24; fret++) { const cell = document.createElement("i"), targetFret = shape ? shape[index] : position.fret; if ((shape ? targetFret !== null : index === position.index) && fret === targetFret) { cell.className = "target"; cell.dataset.fret = targetFret || "O"; } row.append(cell); }
+    for (let fret = 0; fret <= 24; fret++) { const cell = document.createElement("i"), targetFret = shape ? shape[index] : position.fret; if (fret === 0) cell.classList.add("open-position"); if ((shape ? targetFret !== null : index === position.index) && fret === targetFret) { cell.classList.add("target"); cell.dataset.fret = targetFret === 0 ? "OPEN" : targetFret; } row.append(cell); }
     els.guitarFretboard.append(row);
   });
 }
