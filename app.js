@@ -59,8 +59,8 @@ function profileStorageKey(kind,id = activeProfileId) { return `openkeys-${kind}
 function loadProfileGame(id = activeProfileId) { try { const saved = localStorage.getItem(profileStorageKey("progress",id)); if (saved) return JSON.parse(saved); if (id === family.profiles[0].id) { const legacy = localStorage.getItem("openkeys-progress"); if (legacy) return JSON.parse(legacy); } } catch (_) {} return {xp:0,lessons:{}}; }
 function loadProfileInstrument(id = activeProfileId) { try { return localStorage.getItem(profileStorageKey("instrument",id)) || (id === family.profiles[0].id ? localStorage.getItem("openkeys-instrument") : null) || "piano"; } catch (_) { return "piano"; } }
 let game = loadProfileGame();
-let currentIndex = 0, audioContext, masterGain, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0, lastStrumAt = 0, lastStrumLevel = 0, recognitionMutedUntil = 0, pendingChordAt = 0, midiAccess;
-let previewIndex = null, previewFrame = 0, previewing = false;
+let currentIndex = 0, audioContext, masterGain, masterLimiter, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0, lastStrumAt = 0, lastStrumLevel = 0, recognitionMutedUntil = 0, pendingChordAt = 0, midiAccess;
+let previewIndex = null, previewFrame = 0, previewing = false, previewedSong = null;
 let setupStream, setupFrame, setupListening = false, setupDetected = false;
 let tunerStringIndex = 0, tunerStableFrames = 0, tunerAdvanceTimer = 0;
 let activeInput = "mic"; const midiPressed = new Set();
@@ -74,7 +74,7 @@ function frequencyFor(midi) { return 440 * 2 ** ((midi - 69) / 12); }
 
 function initAudio() {
   if (!AudioContext) return false;
-  if (!audioContext) { audioContext = new AudioContext(); masterGain = audioContext.createGain(); masterGain.gain.value = .32; masterGain.connect(audioContext.destination); }
+  if (!audioContext) { audioContext = new AudioContext(); masterGain = audioContext.createGain(); masterLimiter = audioContext.createDynamicsCompressor(); masterGain.gain.value = 1; masterLimiter.threshold.value = -3; masterLimiter.knee.value = 6; masterLimiter.ratio.value = 12; masterLimiter.attack.value = .003; masterLimiter.release.value = .18; masterGain.connect(masterLimiter).connect(audioContext.destination); }
   if (audioContext.state === "suspended") audioContext.resume();
   return true;
 }
@@ -322,12 +322,12 @@ function render() {
     const note = notes[index], x = 32 + (index - viewPosition) * 17;
     const dot = document.createElement("i"); dot.className = `score-note ${index === viewIndex ? "current" : index < viewIndex ? "past" : "future"}`;
     dot.style.setProperty("--x", `${x}%`); dot.style.setProperty("--y", staffY(note)); els.track.append(dot);
-    if (note.pitches?.length > 1) { const bass = document.createElement("i"); bass.className = `score-note chord-part ${offset === 0 ? "current" : offset < 0 ? "past" : "future"}`; bass.style.setProperty("--x",`${x}%`); bass.style.setProperty("--y",staffY({midi:note.pitches[0],hand:"left"})); els.track.append(bass); }
+    if (!note.strum && note.pitches?.length > 1) { const bass = document.createElement("i"); bass.className = `score-note chord-part ${index === viewIndex ? "current" : index < viewIndex ? "past" : "future"}`; bass.style.setProperty("--x",`${x}%`); bass.style.setProperty("--y",staffY({midi:note.pitches[0],hand:"left"})); els.track.append(bass); }
     const label = document.createElement("span"); label.className = "note-letter"; label.textContent = note.strum ? `${note.direction} ${noteName(note.midi)}` : noteLabel(note.midi);
     label.style.setProperty("--x", `${x}%`); label.style.setProperty("--y", staffY(note)); els.track.append(label);
   }
   for (let i = 0; i < 6; i++) { const count = document.createElement("span"); count.textContent = String(viewIndex + i + 1).padStart(2, "0"); els.counts.append(count); }
-  els.phraseLabel.textContent = "Preview song";
+  els.hearPhrase.disabled = previewing || previewedSong === song; els.phraseLabel.textContent = previewing ? "Playing preview…" : previewedSong === song ? "Preview played" : "Preview song";
   if (target) { els.targetName.textContent = target.strum ? target.direction : target.pitches?.length > 1 ? "2" : noteName(target.midi); els.targetOctave.textContent = target.strum ? target.chord : target.pitches?.length > 1 ? "notes together" : `Octave ${noteOctave(target.midi)}`; renderPlacement(target,viewIndex); }
   const done = Math.min(currentIndex, total); els.progressText.textContent = `${done} / ${total}`; els.progressBar.style.width = `${total ? done / total * 100 : 0}%`;
   els.xpTotal.textContent = game.xp || 0; renderPhrases();
@@ -423,22 +423,21 @@ function completeSetup() { if (!setupDetected && !journeyProgress().setupComplet
 
 function playTarget(note,when,duration) { if (note.strum) note.chordPitches.forEach((pitch,index) => playGuitarTone(pitch,when + index * .025,duration,note.velocity)); else if (note.pitches?.length > 1) note.pitches.forEach((pitch,index) => playPianoTone(pitch,when + index * .012,duration,note.velocity)); else playTone(note.midi,when,duration,note.velocity); }
 function playPhrase() {
-  if (previewing) return;
+  if (previewing || previewedSong === song) return;
   if (listening) stopListening();
-  const previewSong = song, start = Math.floor(currentIndex / 16) * 16, end = Math.min(start + 16,song.notes.length), stepMs = 430;
-  previewing = true;
+  initAudio(); const previewSong = song, start = Math.floor(currentIndex / 16) * 16, end = Math.min(start + 16,song.notes.length), section = song.notes.slice(start,end), baseNoteTime = section[0]?.start || 0, offsets = section.map((note,index) => Number.isFinite(note.start) ? Math.max(0,note.start - baseNoteTime) : index * .5), leadIn = .1, audioStartedAt = audioContext.currentTime + leadIn;
+  previewing = true; previewedSong = song;
   els.hearPhrase.disabled = true; els.phraseLabel.textContent = "Playing preview…"; els.statusTitle.textContent = "Listen and watch"; els.statusCopy.textContent = "The play marker follows each note";
-  for (let i = start; i < end; i++) {
-    const when = (i - start) * stepMs / 1000; playTarget(song.notes[i],when,.34); if (song.plan?.ensemble && (i - start) % 4 === 0) playEnsembleCue(song.notes[i],when + .08);
+  for (let index = 0; index < section.length; index++) {
+    const note = section[index], when = Math.max(0,audioStartedAt - audioContext.currentTime + offsets[index]), duration = Math.max(.18,Math.min(.85,note.duration || .4)); playTarget(note,when,duration); if (song.plan?.ensemble && index % 4 === 0) playEnsembleCue(note,when + .08);
   }
-  const startedAt = performance.now(), totalDuration = (end - start) * stepMs + 150;
-  const animate = now => {
+  const lastDuration = Math.max(.18,Math.min(.85,section.at(-1)?.duration || .4)), totalDuration = offsets.at(-1) + lastDuration + .15;
+  const animate = () => {
     if (song !== previewSong) { previewIndex = null; previewing = false; els.hearPhrase.disabled = false; cancelAnimationFrame(previewFrame); return; }
-    const elapsed = now - startedAt;
-    previewIndex = start + Math.min(end - start - 1,elapsed / stepMs);
+    const elapsed = Math.max(0,audioContext.currentTime - audioStartedAt); let beat = 0; while (beat < offsets.length - 1 && elapsed >= offsets[beat + 1]) beat++; const nextGap = beat < offsets.length - 1 ? Math.max(.001,offsets[beat + 1] - offsets[beat]) : 1, fraction = beat < offsets.length - 1 ? Math.max(0,Math.min(1,(elapsed - offsets[beat]) / nextGap)) : 0; previewIndex = start + beat + fraction;
     render(); els.phraseLabel.textContent = "Playing preview…";
     if (elapsed < totalDuration) previewFrame = requestAnimationFrame(animate);
-    else { previewIndex = null; previewing = false; previewFrame = 0; els.hearPhrase.disabled = false; render(); els.statusTitle.textContent = "Your turn"; els.statusCopy.textContent = "Play the highlighted note when you’re ready"; }
+    else { previewIndex = null; previewing = false; previewFrame = 0; render(); els.statusTitle.textContent = "Your turn"; els.statusCopy.textContent = "Play the highlighted note when you’re ready"; }
   };
   previewFrame = requestAnimationFrame(animate);
 }
@@ -486,4 +485,4 @@ function showToast(message) {
   showToast.timer = setTimeout(() => { els.toast.classList.remove("show"); setTimeout(() => { if (!els.toast.classList.contains("show")) toastHome.append(els.toast); },220); },3000);
 }
 document.addEventListener("visibilitychange", () => { if (document.hidden && listening) stopListening(); });
-els.instrumentButtons.forEach(button => { const active = button.dataset.instrument === activeInstrument; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active); }); els.inputButtons.forEach(button => button.setAttribute("aria-pressed",button.dataset.input === activeInput)); const initialPlans = CURRICULA[activeInstrument], initialPlan = initialPlans.find(plan => !planComplete(plan)) || initialPlans[initialPlans.length - 1]; song = plannedLesson(initialPlan); els.title.textContent = song.name; els.composer.textContent = `${song.composer} · ${initialPlan.skill}`; renderProfiles(); renderJourney(); renderLibrary(); render();
+els.instrumentButtons.forEach(button => { const active = button.dataset.instrument === activeInstrument; button.classList.toggle("active", active); button.setAttribute("aria-pressed", active); }); els.inputButtons.forEach(button => button.setAttribute("aria-pressed",button.dataset.input === activeInput)); const initialPlans = CURRICULA[activeInstrument], initialPlan = initialPlans.find(plan => !planComplete(plan)) || initialPlans[initialPlans.length - 1]; song = plannedLesson(initialPlan); els.title.textContent = song.name; els.composer.textContent = `${song.composer} · ${initialPlan.skill}`; els.statusTitle.textContent = initialPlan.arrangement === "strum" ? "Ready to strum" : "Ready to listen"; els.statusCopy.textContent = initialPlan.arrangement === "strum" ? "Start listening, then strum the shown chord" : "Turn on your microphone to begin"; renderProfiles(); renderJourney(); renderLibrary(); render();
