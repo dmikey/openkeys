@@ -10,7 +10,7 @@ const els = {
   library: $("#library-dialog"), libraryButton: $("#library-button"), libraryClose: $("#library-close"), lessonGrid: $("#lesson-grid"),
   phraseList: $("#phrase-list"), lessonHeading: $("#lesson-heading"), partLabel: $("#part-label"), xpTotal: $("#xp-total"),
   physicalKeyboard: $("#physical-keyboard"), positionHint: $("#position-hint"), handName: $("#hand-name"), fingerNumber: $("#finger-number"),
-  fingerName: $("#finger-name"), fingerDots: $("#finger-dots"), comboValue: $("#combo-value")
+  fingerName: $("#finger-name"), fingerDots: $("#finger-dots"), fingerPath: $("#finger-path"), comboValue: $("#combo-value")
 };
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -130,6 +130,13 @@ function renderPlacement(target) {
   whites.forEach(note => { const key = document.createElement("i"); key.className = `guide-key white${note === midi ? " target" : ""}${note === 60 ? " middle-c" : ""}`; key.dataset.note = noteLabel(note); if (note === midi) key.dataset.finger = finger; els.physicalKeyboard.append(key); });
   whites.forEach((note, index) => {
     if (note < max && [0,2,5,7,9].includes(note % 12)) { const blackMidi = note + 1, key = document.createElement("i"); key.className = `guide-key black${blackMidi === midi ? " target" : ""}`; key.style.left = `${(index + 1) / whites.length * 100}%`; key.dataset.note = noteLabel(blackMidi); if (blackMidi === midi) key.dataset.finger = finger; els.physicalKeyboard.append(key); }
+  });
+  els.fingerPath.innerHTML = "";
+  song.notes.slice(currentIndex, currentIndex + 4).forEach((note, offset) => {
+    const step = document.createElement("span"); step.className = `finger-step${offset === 0 ? " current" : ""}`;
+    const dot = document.createElement("i"), label = document.createElement("small");
+    dot.textContent = suggestedFinger(note.midi, currentIndex + offset); label.textContent = noteLabel(note.midi);
+    step.append(dot, label); els.fingerPath.append(step);
   });
 }
 
