@@ -60,7 +60,7 @@ function loadProfileGame(id = activeProfileId) { try { const saved = localStorag
 function loadProfileInstrument(id = activeProfileId) { try { return localStorage.getItem(profileStorageKey("instrument",id)) || (id === family.profiles[0].id ? localStorage.getItem("openkeys-instrument") : null) || "piano"; } catch (_) { return "piano"; } }
 let game = loadProfileGame();
 let currentIndex = 0, audioContext, masterGain, masterLimiter, micStream, micFrame, listening = false, correctFrames = 0, wrongFrames = 0, combo = 0, matchHistory = [], lastAnalysis = 0, lastStrumAt = 0, lastStrumLevel = 0, recognitionMutedUntil = 0, pendingChordAt = 0, midiAccess;
-let previewIndex = null, previewFrame = 0, previewing = false, previewedSong = null;
+let previewIndex = null, previewFrame = 0, previewing = false;
 let setupStream, setupFrame, setupListening = false, setupDetected = false;
 let tunerStringIndex = 0, tunerStableFrames = 0, tunerAdvanceTimer = 0;
 let activeInput = "mic"; const midiPressed = new Set();
@@ -327,7 +327,7 @@ function render() {
     label.style.setProperty("--x", `${x}%`); label.style.setProperty("--y", staffY(note)); els.track.append(label);
   }
   for (let i = 0; i < 6; i++) { const count = document.createElement("span"); count.textContent = String(viewIndex + i + 1).padStart(2, "0"); els.counts.append(count); }
-  els.hearPhrase.disabled = previewing || previewedSong === song; els.phraseLabel.textContent = previewing ? "Playing preview…" : previewedSong === song ? "Preview played" : "Preview song";
+  els.hearPhrase.disabled = previewing; els.phraseLabel.textContent = previewing ? "Playing preview…" : "Preview song";
   if (target) { els.targetName.textContent = target.strum ? target.direction : target.pitches?.length > 1 ? "2" : noteName(target.midi); els.targetOctave.textContent = target.strum ? target.chord : target.pitches?.length > 1 ? "notes together" : `Octave ${noteOctave(target.midi)}`; renderPlacement(target,viewIndex); }
   const done = Math.min(currentIndex, total); els.progressText.textContent = `${done} / ${total}`; els.progressBar.style.width = `${total ? done / total * 100 : 0}%`;
   els.xpTotal.textContent = game.xp || 0; renderPhrases();
@@ -422,19 +422,20 @@ async function startSetupListening() {
 function completeSetup() { if (!setupDetected && !journeyProgress().setupComplete) return; const progress = journeyProgress(), firstCompletion = !progress.setupComplete; if (firstCompletion) { progress.setupComplete = true; game.xp += 25; saveGame(); } stopSetupListening(); renderJourney(); els.setup.close(); showToast(firstCompletion ? "Setup complete · +25 XP" : "Setup check complete"); }
 
 function playTarget(note,when,duration) { if (note.strum) note.chordPitches.forEach((pitch,index) => playGuitarTone(pitch,when + index * .025,duration,note.velocity)); else if (note.pitches?.length > 1) note.pitches.forEach((pitch,index) => playPianoTone(pitch,when + index * .012,duration,note.velocity)); else playTone(note.midi,when,duration,note.velocity); }
+function audibleAudioTime() { if (typeof audioContext.getOutputTimestamp === "function") { const timestamp = audioContext.getOutputTimestamp(); return timestamp?.contextTime > 0 ? timestamp.contextTime : null; } const deviceLatency = (audioContext.baseLatency || 0) + (audioContext.outputLatency || 0); return audioContext.currentTime - Math.max(.12,Math.min(.4,deviceLatency)); }
 function playPhrase() {
-  if (previewing || previewedSong === song) return;
+  if (previewing) return;
   if (listening) stopListening();
   initAudio(); const previewSong = song, start = Math.floor(currentIndex / 16) * 16, end = Math.min(start + 16,song.notes.length), section = song.notes.slice(start,end), baseNoteTime = section[0]?.start || 0, offsets = section.map((note,index) => Number.isFinite(note.start) ? Math.max(0,note.start - baseNoteTime) : index * .5), leadIn = .1, audioStartedAt = audioContext.currentTime + leadIn;
-  previewing = true; previewedSong = song;
+  previewing = true;
   els.hearPhrase.disabled = true; els.phraseLabel.textContent = "Playing preview…"; els.statusTitle.textContent = "Listen and watch"; els.statusCopy.textContent = "The play marker follows each note";
   for (let index = 0; index < section.length; index++) {
     const note = section[index], when = Math.max(0,audioStartedAt - audioContext.currentTime + offsets[index]), duration = Math.max(.18,Math.min(.85,note.duration || .4)); playTarget(note,when,duration); if (song.plan?.ensemble && index % 4 === 0) playEnsembleCue(note,when + .08);
   }
-  const lastDuration = Math.max(.18,Math.min(.85,section.at(-1)?.duration || .4)), totalDuration = offsets.at(-1) + lastDuration + .15;
+  const lastDuration = Math.max(.18,Math.min(.85,section.at(-1)?.duration || .4)), totalDuration = offsets.at(-1) + lastDuration + .15; let lastElapsed = 0;
   const animate = () => {
     if (song !== previewSong) { previewIndex = null; previewing = false; els.hearPhrase.disabled = false; cancelAnimationFrame(previewFrame); return; }
-    const elapsed = Math.max(0,audioContext.currentTime - audioStartedAt); let beat = 0; while (beat < offsets.length - 1 && elapsed >= offsets[beat + 1]) beat++; const nextGap = beat < offsets.length - 1 ? Math.max(.001,offsets[beat + 1] - offsets[beat]) : 1, fraction = beat < offsets.length - 1 ? Math.max(0,Math.min(1,(elapsed - offsets[beat]) / nextGap)) : 0; previewIndex = start + beat + fraction;
+    const outputTime = audibleAudioTime(), measuredElapsed = outputTime === null ? 0 : Math.max(0,outputTime - audioStartedAt), elapsed = Math.max(lastElapsed,measuredElapsed); lastElapsed = elapsed; let beat = 0; while (beat < offsets.length - 1 && elapsed >= offsets[beat + 1]) beat++; const nextGap = beat < offsets.length - 1 ? Math.max(.001,offsets[beat + 1] - offsets[beat]) : 1, fraction = beat < offsets.length - 1 ? Math.max(0,Math.min(1,(elapsed - offsets[beat]) / nextGap)) : 0; previewIndex = start + beat + fraction;
     render(); els.phraseLabel.textContent = "Playing preview…";
     if (elapsed < totalDuration) previewFrame = requestAnimationFrame(animate);
     else { previewIndex = null; previewing = false; previewFrame = 0; render(); els.statusTitle.textContent = "Your turn"; els.statusCopy.textContent = "Play the highlighted note when you’re ready"; }
